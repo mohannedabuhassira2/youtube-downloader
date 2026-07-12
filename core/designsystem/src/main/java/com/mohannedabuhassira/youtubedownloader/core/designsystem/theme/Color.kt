@@ -1,4 +1,4 @@
-package com.mohannedabuhassira.youtubedownloader.ui.theme
+package com.mohannedabuhassira.youtubedownloader.core.designsystem.theme
 
 import androidx.compose.ui.graphics.Color
 
