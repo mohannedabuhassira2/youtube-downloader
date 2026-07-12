@@ -1,12 +1,6 @@
 pluginManagement {
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        google()
         mavenCentral()
         gradlePluginPortal()
     }
@@ -25,6 +19,7 @@ dependencyResolutionManagement {
 rootProject.name = "Youtube Downloader"
 include(":app")
 include(":core:designsystem")
+include(":core:network")
 include(":features:downloader")
 include(":testing:unit")
 include(":testing:ui")
