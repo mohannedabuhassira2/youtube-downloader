@@ -1,5 +1,6 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.presentation.ui
 
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -59,9 +60,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -277,11 +281,19 @@ private fun VideoInfoCard(
     onDownloadClick: (DownloadType) -> Unit,
     onClearClick: () -> Unit
 ) {
+    var hasStartedDownloading by remember { mutableStateOf(false) }
+
     val animatedProgress by animateFloatAsState(
         targetValue = (progress ?: 0f) / 100f,
-        animationSpec = tween(durationMillis = 500, easing = LinearEasing),
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
         label = "ProgressAnimation"
     )
+
+    LaunchedEffect(isDownloading) {
+        if (isDownloading) hasStartedDownloading = true
+    }
+
+    val showProgressPerimeter = hasStartedDownloading && animatedProgress < 0.99f
 
     val progressColor by animateColorAsState(
         targetValue = when {
@@ -298,7 +310,7 @@ private fun VideoInfoCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .then(
-                if (isDownloading) {
+                if (showProgressPerimeter) {
                     Modifier.drawWithCache {
                         val path = Path().apply {
                             addRoundRect(
@@ -357,7 +369,10 @@ private fun VideoInfoCard(
                     label = "MediaContent"
                 ) { isDownloaded ->
                     if (isDownloaded && !downloadedFilePath.isNullOrBlank()) {
-                        VideoPlayer(filePath = downloadedFilePath)
+                        VideoPlayer(
+                            filePath = downloadedFilePath,
+                            onDismiss = onClearClick
+                        )
                     } else {
                         Box {
                             AsyncImage(
@@ -429,8 +444,8 @@ private fun VideoInfoCard(
                 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                if (isDownloading) {
-                    DownloadProgressSection(progress = progress, color = progressColor)
+                if (isDownloading || showProgressPerimeter) {
+                    DownloadProgressSection(progress = (animatedProgress * 100f), color = progressColor)
                 } else if (!downloadedFilePath.isNullOrBlank()) {
                     DownloadSuccessSection()
                 } else {
@@ -463,11 +478,12 @@ private fun VideoInfoCard(
 
 @OptIn(UnstableApi::class)
 @Composable
-private fun VideoPlayer(filePath: String) {
+private fun VideoPlayer(filePath: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
+
     val exoPlayer = remember(filePath) {
         ExoPlayer.Builder(context).build().apply {
-            val mediaItem = MediaItem.fromUri(android.net.Uri.fromFile(File(filePath)))
+            val mediaItem = MediaItem.fromUri(Uri.fromFile(File(filePath)))
             setMediaItem(mediaItem)
             prepare()
             playWhenReady = true
@@ -480,19 +496,37 @@ private fun VideoPlayer(filePath: String) {
         }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                useController = true
-                setShowNextButton(false)
-                setShowPreviousButton(false)
-                setShowSubtitleButton(false)
-                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
-            }
-        },
-        modifier = Modifier.fillMaxSize()
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    useController = true
+                    setShowNextButton(false)
+                    setShowPreviousButton(false)
+                    setShowSubtitleButton(false)
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Overlay Dismiss Button (Top Right)
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .size(32.dp)
+                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+        ) {
+            Icon(
+                Icons.Rounded.Clear,
+                contentDescription = "Close Player",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
 }
 
 @Composable
@@ -546,7 +580,7 @@ private fun DownloadActionButton(
 }
 
 @Composable
-private fun DownloadProgressSection(progress: Float?, color: Color) {
+private fun DownloadProgressSection(progress: Float, color: Color) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -554,19 +588,17 @@ private fun DownloadProgressSection(progress: Float?, color: Color) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Downloading...",
+                text = if (progress >= 99.9f) "Finalizing..." else "Downloading...",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
-            progress?.let {
-                Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.CenterEnd) {
-                    Text(
-                        text = "${it.toInt()}%",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = color,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.CenterEnd) {
+                Text(
+                    text = "${progress.toInt()}%",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = color,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
         

@@ -46,7 +46,8 @@ class NetworkDownloader @Inject constructor(
         config: NetworkDownloadConfig
     ): Flow<DownloadStatus> = callbackFlow {
         val request = YoutubeDLRequest(config.url).apply {
-            addOption("-o", "${config.destinationPath}/%(title)s.%(ext)s")
+            val outputTemplate = "${config.destinationPath}/${config.title}.%(ext)s"
+            addOption("-o", outputTemplate)
             addOption("--extractor-args", "youtube:player_client=android_vr")
             addOption("--no-playlist")
             addOption("--downloader", "aria2c")
@@ -70,7 +71,7 @@ class NetworkDownloader @Inject constructor(
                     Log.d("NetworkDownloader", "Download progress: $progress - $downloadedBytes - $status")
                 }
             },
-            onEndProcess = { _ ->
+            onEndProcess = {
                 Log.d("NetworkDownloader", "Download done")
                 trySend(DownloadStatus.Progress(100f))
 
