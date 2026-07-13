@@ -6,6 +6,7 @@ import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownl
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadOptions
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.repository.DownloaderRepository
 import kotlinx.coroutines.flow.Flow
@@ -41,11 +42,22 @@ internal class DownloaderRepositoryImpl @Inject constructor(
     override fun download(
         options: DownloadOptions
     ): Flow<ApiResult<DownloadStatus>> {
+        val videoFormat = when (options.videoQuality) {
+            VideoQuality.LOW -> "bestvideo[height<=360]+bestaudio/best[height<=360]"
+            VideoQuality.MEDIUM -> "bestvideo[height<=720]+bestaudio/best[height<=720]"
+            VideoQuality.HIGH -> "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+            VideoQuality.BEST -> "bestvideo+bestaudio/best"
+        }
+
+        val qualitySuffix = if (options.type == DownloadType.VIDEO) " [${options.videoQuality.label}]" else ""
+        val titleWithQuality = "${options.title}$qualitySuffix"
+
         val config = NetworkDownloadConfig(
             url = options.url,
-            title = options.title,
+            title = titleWithQuality,
             destinationPath = options.destinationPath,
-            isAudioOnly = options.type == DownloadType.AUDIO
+            isAudioOnly = options.type == DownloadType.AUDIO,
+            videoQuality = videoFormat
         )
 
         return networkDownloader.streamDownload(config)

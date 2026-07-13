@@ -8,6 +8,7 @@ import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStat
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadOptions
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.repository.DownloaderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -34,6 +35,10 @@ internal class DownloaderViewModel @Inject constructor(
                 it.copy(url = newUrl)
             }
         }
+    }
+
+    fun onQualityChange(quality: VideoQuality) {
+        _uiState.update { it.copy(selectedQuality = quality) }
     }
 
     fun fetchVideoInfo() {
@@ -69,7 +74,8 @@ internal class DownloaderViewModel @Inject constructor(
                 url = _uiState.value.url,
                 title = _uiState.value.videoInfo?.title,
                 destinationPath = destination,
-                type = type
+                type = type,
+                videoQuality = _uiState.value.selectedQuality
             )
 
             repository

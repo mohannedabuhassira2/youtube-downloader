@@ -57,7 +57,8 @@ class NetworkDownloader @Inject constructor(
                 addOption("--audio-format", "mp3")
                 addOption("--audio-quality", "0")
             } else {
-                addOption("-f", "best[ext=mp4]")
+                addOption("-f", config.videoQuality)
+                addOption("--merge-output-format", "mp4")
             }
         }
 

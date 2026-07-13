@@ -84,9 +84,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_NO
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,6 +99,7 @@ import coil3.compose.AsyncImage
 import com.mohannedabuhassira.youtubedownloader.core.designsystem.theme.YoutubeDownloaderTheme
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 import java.io.File
 import java.util.Locale
 
@@ -118,6 +118,7 @@ internal fun DownloaderScreen(
     DownloaderScreenContent(
         uiState = uiState,
         onUrlChange = viewModel::onUrlChange,
+        onQualityChange = viewModel::onQualityChange,
         onGetInfoClick = viewModel::fetchVideoInfo,
         onDownloadClick = viewModel::startDownload
     )
@@ -127,6 +128,7 @@ internal fun DownloaderScreen(
 internal fun DownloaderScreenContent(
     uiState: DownloaderUiState,
     onUrlChange: (String) -> Unit,
+    onQualityChange: (VideoQuality) -> Unit,
     onGetInfoClick: () -> Unit,
     onDownloadClick: (DownloadType) -> Unit
 ) {
@@ -144,15 +146,6 @@ internal fun DownloaderScreenContent(
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "YouTube Downloader",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                ),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
@@ -215,14 +208,14 @@ internal fun DownloaderScreenContent(
                             if (loading) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    color = MaterialTheme.colorScheme.primary,
                                     strokeWidth = 3.dp
                                 )
                             } else {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Rounded.Search, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Analyze Video", fontWeight = FontWeight.SemiBold)
+                                    Text("Analyze Video")
                                 }
                             }
                         }
@@ -251,6 +244,8 @@ internal fun DownloaderScreenContent(
                                 isDownloading = uiState.isDownloading,
                                 progress = uiState.progress,
                                 downloadedFilePath = uiState.downloadedFilePath,
+                                selectedQuality = uiState.selectedQuality,
+                                onQualityChange = onQualityChange,
                                 onDownloadClick = onDownloadClick,
                                 onClearClick = { onUrlChange("") }
                             )
@@ -278,6 +273,8 @@ private fun VideoInfoCard(
     isDownloading: Boolean,
     progress: Float?,
     downloadedFilePath: String?,
+    selectedQuality: VideoQuality,
+    onQualityChange: (VideoQuality) -> Unit,
     onDownloadClick: (DownloadType) -> Unit,
     onClearClick: () -> Unit
 ) {
@@ -298,8 +295,8 @@ private fun VideoInfoCard(
     val progressColor by animateColorAsState(
         targetValue = when {
             animatedProgress < 0.3f -> MaterialTheme.colorScheme.primary
-            animatedProgress < 0.7f -> Color(0xFFFF9800) // Orange
-            else -> Color(0xFF4CAF50) // Material Green
+            animatedProgress < 0.7f -> Color(0xFFFF9800)
+            else -> Color(0xFF4CAF50)
         },
         animationSpec = tween(durationMillis = 500),
         label = "ProgressColor"
@@ -410,7 +407,6 @@ private fun VideoInfoCard(
                     Text(
                         text = videoInfo.title ?: "Unknown Title",
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
                             lineHeight = 28.sp
                         ),
                         maxLines = 2,
@@ -439,6 +435,29 @@ private fun VideoInfoCard(
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
+
+                if (!isDownloading && downloadedFilePath.isNullOrBlank()) {
+                    Text(
+                        text = "Download Quality",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        VideoQuality.entries.forEach { quality ->
+                            QualityChip(
+                                quality = quality,
+                                selected = selectedQuality == quality,
+                                onClick = { onQualityChange(quality) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
                 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 
@@ -466,12 +485,45 @@ private fun VideoInfoCard(
                             icon = Icons.Rounded.Movie,
                             onClick = { onDownloadClick(DownloadType.VIDEO) },
                             modifier = Modifier.weight(1f),
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun QualityChip(
+    quality: VideoQuality,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        label = "QualityChipBg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "QualityChipContent"
+    )
+
+    Surface(
+        onClick = onClick,
+        color = backgroundColor,
+        contentColor = contentColor,
+        shape = RoundedCornerShape(12.dp),
+        border = if (!selected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+        modifier = modifier.height(40.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = quality.label,
+                style = MaterialTheme.typography.labelLarge
+            )
         }
     }
 }
@@ -509,23 +561,6 @@ private fun VideoPlayer(filePath: String, onDismiss: () -> Unit) {
             },
             modifier = Modifier.fillMaxSize()
         )
-
-        // Overlay Dismiss Button (Top Right)
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-                .size(32.dp)
-                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-        ) {
-            Icon(
-                Icons.Rounded.Clear,
-                contentDescription = "Close Player",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-        }
     }
 }
 
@@ -548,8 +583,7 @@ private fun DownloadSuccessSection() {
         Text(
             text = "Ready to Play!",
             style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFF4CAF50),
-            fontWeight = FontWeight.Bold
+            color = Color(0xFF4CAF50)
         )
     }
 }
@@ -575,7 +609,7 @@ private fun DownloadActionButton(
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text, fontWeight = FontWeight.Bold)
+        Text(text)
     }
 }
 
@@ -589,15 +623,13 @@ private fun DownloadProgressSection(progress: Float, color: Color) {
         ) {
             Text(
                 text = if (progress >= 99.9f) "Finalizing..." else "Downloading...",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleSmall
             )
             Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "${progress.toInt()}%",
                     style = MaterialTheme.typography.labelLarge,
-                    color = color,
-                    fontWeight = FontWeight.Bold
+                    color = color
                 )
             }
         }
@@ -653,8 +685,7 @@ private fun EmptyState() {
         
         Text(
             text = "Ready to download?",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.titleMedium
         )
         Text(
             text = "Enter a YouTube link above to start",
@@ -704,7 +735,7 @@ private fun formatDuration(seconds: Int): String {
     }
 }
 
-@Preview(showBackground = true, uiMode = UI_MODE_NIGHT_YES)
+@Preview(showBackground = true, uiMode = UI_MODE_NIGHT_NO)
 @Composable
 private fun DownloaderScreenPreview() {
     YoutubeDownloaderTheme {
@@ -719,7 +750,9 @@ private fun DownloaderScreenPreview() {
                 )
             ),
             onUrlChange = {},
-            onGetInfoClick = {}
-        ) { }
+            onQualityChange = {},
+            onGetInfoClick = {},
+            onDownloadClick = {}
+        )
     }
 }
