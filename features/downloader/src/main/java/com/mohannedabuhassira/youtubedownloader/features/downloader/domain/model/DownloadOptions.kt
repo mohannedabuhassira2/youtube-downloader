@@ -2,6 +2,7 @@ package com.mohannedabuhassira.youtubedownloader.features.downloader.domain.mode
 
 internal data class DownloadOptions(
     val url: String,
+    val title: String?,
     val destinationPath: String,
     val type: DownloadType
 )

@@ -1,9 +1,8 @@
 package com.mohannedabuhassira.youtubedownloader.core.network.di
 
 import android.content.Context
-import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloader
 import com.mohannedabuhassira.youtubedownloader.core.network.factory.YoutubeDLFactory
-import com.yausername.youtubedl_android.YoutubeDL
+import com.farimarwat.library.YoutubeDL
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

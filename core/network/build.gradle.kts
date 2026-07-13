@@ -38,8 +38,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    api(libs.youtubedl.library)
-    api(libs.youtubedl.ffmpeg)
-    api(libs.youtubedl.aria2c)
+    api(libs.youtubedl.boom)
+    api(libs.youtubedl.boom.commons)
     implementation(libs.androidx.core.ktx)
 }

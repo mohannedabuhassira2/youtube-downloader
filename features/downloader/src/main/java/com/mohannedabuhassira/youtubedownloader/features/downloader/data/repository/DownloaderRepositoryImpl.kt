@@ -1,5 +1,6 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.data.repository
 
+import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStatus
 import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloader
 import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloadConfig
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
@@ -19,7 +20,9 @@ internal class DownloaderRepositoryImpl @Inject constructor(
     private val networkDownloader: NetworkDownloader
 ) : DownloaderRepository {
 
-    override suspend fun getInfo(url: String): ApiResult<VideoModel> {
+    override suspend fun getInfo(
+        url: String
+    ): ApiResult<VideoModel> {
         return try {
             val info = networkDownloader.getInfo(url)
             ApiResult.Success(
@@ -35,22 +38,31 @@ internal class DownloaderRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun download(options: DownloadOptions): Flow<ApiResult<Float>> {
+    override fun download(
+        options: DownloadOptions
+    ): Flow<ApiResult<DownloadStatus>> {
         val config = NetworkDownloadConfig(
             url = options.url,
+            title = options.title,
             destinationPath = options.destinationPath,
             isAudioOnly = options.type == DownloadType.AUDIO
         )
 
         return networkDownloader.streamDownload(config)
-            .map { progress ->
-                if (progress >= 100f) {
-                    ApiResult.Success(progress)
-                } else {
-                    ApiResult.Loading(progress)
+            .map { status ->
+                when (status) {
+                    is DownloadStatus.Progress -> {
+                        ApiResult.Loading(status.percentage)
+                    }
+                    is DownloadStatus.Completed -> {
+                        ApiResult.Success(status)
+                    }
+                    is DownloadStatus.Failed -> {
+                        ApiResult.Error(status.message)
+                    }
                 }
             }
             .onStart { emit(ApiResult.Loading(0f)) }
-            .catch { e -> emit(ApiResult.Error(e.message, e)) }
+            .catch { e -> emit(ApiResult.Error(e.message ?: "Unknown error", e)) }
     }
 }

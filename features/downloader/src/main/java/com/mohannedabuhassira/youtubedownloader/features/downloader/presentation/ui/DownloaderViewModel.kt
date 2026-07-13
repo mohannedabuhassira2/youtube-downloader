@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStatus
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadOptions
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
@@ -26,12 +27,25 @@ internal class DownloaderViewModel @Inject constructor(
     val uiState: StateFlow<DownloaderUiState> = _uiState.asStateFlow()
 
     fun onUrlChange(newUrl: String) {
-        _uiState.update { it.copy(url = newUrl) }
+        _uiState.update { 
+            if (newUrl.isEmpty()) {
+                DownloaderUiState()
+            } else {
+                it.copy(url = newUrl)
+            }
+        }
     }
 
     fun fetchVideoInfo() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(
+                isLoading = true,
+                errorMessage = null,
+                videoInfo = null,
+                downloadedFilePath = null,
+                progress = null,
+                isDownloading = false
+            ) }
             when (val result = repository.getInfo(_uiState.value.url)) {
                 is ApiResult.Success -> {
                     _uiState.update { it.copy(isLoading = false, videoInfo = result.data) }
@@ -53,6 +67,7 @@ internal class DownloaderViewModel @Inject constructor(
             
             val options = DownloadOptions(
                 url = _uiState.value.url,
+                title = _uiState.value.videoInfo?.title,
                 destinationPath = destination,
                 type = type
             )
@@ -62,7 +77,11 @@ internal class DownloaderViewModel @Inject constructor(
                 .collect { result ->
                     when (result) {
                         is ApiResult.Success -> {
-                            _uiState.update { it.copy(isDownloading = false, progress = 100f) }
+                            _uiState.update { it.copy(
+                                isDownloading = false,
+                                progress = 100f,
+                                downloadedFilePath = (result.data as? DownloadStatus.Completed)?.filePath
+                            ) }
                         }
                         is ApiResult.Error -> {
                             _uiState.update { it.copy(isDownloading = false, errorMessage = result.message) }

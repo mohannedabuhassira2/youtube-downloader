@@ -8,5 +8,6 @@ internal data class DownloaderUiState(
     val videoInfo: VideoModel? = null,
     val progress: Float? = null,
     val errorMessage: String? = null,
-    val isDownloading: Boolean = false
+    val isDownloading: Boolean = false,
+    val downloadedFilePath: String? = null
 )
