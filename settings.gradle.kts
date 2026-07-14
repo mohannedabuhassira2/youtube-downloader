@@ -21,6 +21,7 @@ include(":app")
 include(":core:designsystem")
 include(":core:network")
 include(":features:downloader")
+include(":features:history")
 include(":testing:unit")
 include(":testing:ui")
  

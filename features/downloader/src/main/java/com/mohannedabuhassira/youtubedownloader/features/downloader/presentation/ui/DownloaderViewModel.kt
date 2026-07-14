@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStatus
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormat
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadOptions
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
@@ -20,7 +21,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-internal class DownloaderViewModel @Inject constructor(
+class DownloaderViewModel @Inject constructor(
     private val repository: DownloaderRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -30,7 +31,7 @@ internal class DownloaderViewModel @Inject constructor(
     fun onUrlChange(newUrl: String) {
         _uiState.update { 
             if (newUrl.isEmpty()) {
-                DownloaderUiState()
+                it.copy(url = "", videoInfo = null, errorMessage = null, downloadedFilePath = null, progress = null, isDownloading = false)
             } else {
                 it.copy(url = newUrl)
             }
@@ -38,7 +39,19 @@ internal class DownloaderViewModel @Inject constructor(
     }
 
     fun onQualityChange(quality: VideoQuality) {
-        _uiState.update { it.copy(selectedQuality = quality) }
+        _uiState.update { it.copy(
+            selectedQuality = quality,
+            selectedAudioFormat = null,
+            selectedDownloadType = DownloadType.VIDEO
+        ) }
+    }
+
+    fun onAudioFormatChange(format: AudioFormat) {
+        _uiState.update { it.copy(
+            selectedAudioFormat = format,
+            selectedQuality = null,
+            selectedDownloadType = DownloadType.AUDIO
+        ) }
     }
 
     fun fetchVideoInfo() {
@@ -49,7 +62,10 @@ internal class DownloaderViewModel @Inject constructor(
                 videoInfo = null,
                 downloadedFilePath = null,
                 progress = null,
-                isDownloading = false
+                isDownloading = false,
+                selectedQuality = null,
+                selectedAudioFormat = null,
+                selectedDownloadType = null
             ) }
             when (val result = repository.getInfo(_uiState.value.url)) {
                 is ApiResult.Success -> {
@@ -65,17 +81,22 @@ internal class DownloaderViewModel @Inject constructor(
         }
     }
 
-    fun startDownload(type: DownloadType) {
+    fun startDownload() {
         viewModelScope.launch {
+            val type = _uiState.value.selectedDownloadType ?: return@launch
             val destination = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath 
                 ?: context.filesDir.absolutePath
             
             val options = DownloadOptions(
                 url = _uiState.value.url,
                 title = _uiState.value.videoInfo?.title,
+                thumbnail = _uiState.value.videoInfo?.thumbnail,
+                duration = _uiState.value.videoInfo?.duration ?: 0,
+                uploader = _uiState.value.videoInfo?.uploader,
                 destinationPath = destination,
                 type = type,
-                videoQuality = _uiState.value.selectedQuality
+                videoQuality = _uiState.value.selectedQuality ?: VideoQuality.BEST,
+                audioFormat = _uiState.value.selectedAudioFormat ?: AudioFormat.MP3
             )
 
             repository
@@ -97,6 +118,19 @@ internal class DownloaderViewModel @Inject constructor(
                         }
                     }
                 }
+        }
+    }
+
+    fun resetDownloadState() {
+        _uiState.update {
+            it.copy(
+                downloadedFilePath = null,
+                progress = null,
+                isDownloading = false,
+                selectedQuality = null,
+                selectedAudioFormat = null,
+                selectedDownloadType = null
+            )
         }
     }
 }

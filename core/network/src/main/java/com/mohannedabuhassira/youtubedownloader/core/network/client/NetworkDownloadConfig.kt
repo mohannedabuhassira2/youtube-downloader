@@ -5,5 +5,6 @@ data class NetworkDownloadConfig(
     val title: String?,
     val destinationPath: String,
     val isAudioOnly: Boolean,
-    val videoQuality: String = "bestvideo+bestaudio/best"
+    val audioFormat: String = "mp3",
+    val videoFormat: String = "bestvideo+bestaudio/best"
 )

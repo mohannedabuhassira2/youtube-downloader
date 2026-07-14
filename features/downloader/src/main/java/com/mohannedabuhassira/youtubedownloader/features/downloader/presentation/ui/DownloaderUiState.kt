@@ -1,9 +1,11 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.presentation.ui
 
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormat
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 
-internal data class DownloaderUiState(
+data class DownloaderUiState(
     val url: String = "",
     val isLoading: Boolean = false,
     val videoInfo: VideoModel? = null,
@@ -11,5 +13,7 @@ internal data class DownloaderUiState(
     val errorMessage: String? = null,
     val isDownloading: Boolean = false,
     val downloadedFilePath: String? = null,
-    val selectedQuality: VideoQuality = VideoQuality.BEST
+    val selectedQuality: VideoQuality? = null,
+    val selectedAudioFormat: AudioFormat? = null,
+    val selectedDownloadType: DownloadType? = null
 )

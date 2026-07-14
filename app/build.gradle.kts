@@ -48,6 +48,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:network"))
     implementation(project(":features:downloader"))
+    implementation(project(":features:history"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

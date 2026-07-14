@@ -50,33 +50,42 @@ class NetworkDownloader @Inject constructor(
             addOption("-o", outputTemplate)
             addOption("--extractor-args", "youtube:player_client=android_vr")
             addOption("--no-playlist")
+            addOption("--no-part")
             addOption("--downloader", "aria2c")
 
             if (config.isAudioOnly) {
                 addOption("-x")
-                addOption("--audio-format", "mp3")
+                addOption("--audio-format", config.audioFormat)
                 addOption("--audio-quality", "0")
             } else {
-                addOption("-f", config.videoQuality)
+                addOption("-S", "res,ext:mp4:m4a")
+                addOption("-f", config.videoFormat)
                 addOption("--merge-output-format", "mp4")
+                addOption("--recode-video", "mp4")
             }
         }
 
         Log.d("NetworkDownloader", "Download started")
 
+        var maxProgressObserved = 0f
         val job = youtubeDLEngine.download(
             request = request,
             progressCallBack = { progress, downloadedBytes, status ->
                 if (progress != INIT_PROGRESS_INDICATOR) {
-                    trySend(DownloadStatus.Progress(progress))
                     Log.d("NetworkDownloader", "Download progress: $progress - $downloadedBytes - $status")
+
+                    // Only emit forward updates to keep UI animations smooth
+                    if (progress > maxProgressObserved) {
+                        maxProgressObserved = progress
+                        trySend(DownloadStatus.Progress(maxProgressObserved))
+                    }
                 }
             },
             onEndProcess = {
                 Log.d("NetworkDownloader", "Download done")
                 trySend(DownloadStatus.Progress(100f))
 
-                val extension = if (config.isAudioOnly) "mp3" else "mp4"
+                val extension = if (config.isAudioOnly) config.audioFormat else "mp4"
                 val filePath = "${config.destinationPath}/${config.title}.$extension"
 
                 Log.d("NetworkDownloader", "Final file path: $filePath")

@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.mohannedabuhassira.youtubedownloader.core.designsystem.theme.YoutubeDownloaderTheme
-import com.mohannedabuhassira.youtubedownloader.features.downloader.presentation.ui.DownloaderEntry
+import com.mohannedabuhassira.youtubedownloader.navigation.YoutubeDownloaderNavGraph
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             YoutubeDownloaderTheme {
-                DownloaderEntry()
+                YoutubeDownloaderNavGraph()
             }
         }
     }

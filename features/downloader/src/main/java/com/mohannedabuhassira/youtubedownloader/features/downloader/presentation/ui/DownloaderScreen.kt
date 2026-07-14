@@ -34,22 +34,26 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,6 +88,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_NO
 import androidx.compose.ui.tooling.preview.Preview
@@ -97,21 +103,18 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import com.mohannedabuhassira.youtubedownloader.core.designsystem.theme.YoutubeDownloaderTheme
-import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormat
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormatInfo
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.QualityInfo
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 import java.io.File
 import java.util.Locale
 
 @Composable
-fun DownloaderEntry() {
-    val viewModel: DownloaderViewModel = hiltViewModel()
-    DownloaderScreen(viewModel = viewModel)
-}
-
-@Composable
-internal fun DownloaderScreen(
-    viewModel: DownloaderViewModel
+fun DownloaderScreen(
+    onNavigateToHistory: () -> Unit,
+    viewModel: DownloaderViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -119,8 +122,11 @@ internal fun DownloaderScreen(
         uiState = uiState,
         onUrlChange = viewModel::onUrlChange,
         onQualityChange = viewModel::onQualityChange,
+        onAudioFormatChange = viewModel::onAudioFormatChange,
         onGetInfoClick = viewModel::fetchVideoInfo,
-        onDownloadClick = viewModel::startDownload
+        onDownloadClick = viewModel::startDownload,
+        onHistoryClick = onNavigateToHistory,
+        onResetDownload = viewModel::resetDownloadState
     )
 }
 
@@ -129,21 +135,54 @@ internal fun DownloaderScreenContent(
     uiState: DownloaderUiState,
     onUrlChange: (String) -> Unit,
     onQualityChange: (VideoQuality) -> Unit,
+    onAudioFormatChange: (AudioFormat) -> Unit,
     onGetInfoClick: () -> Unit,
-    onDownloadClick: (DownloadType) -> Unit
+    onDownloadClick: () -> Unit,
+    onHistoryClick: () -> Unit,
+    onResetDownload: () -> Unit
 ) {
     val clipboardManager = LocalClipboardManager.current
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 48.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "YouTube Downloader",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(
+                    onClick = onHistoryClick
+                ) {
+                    Icon(
+                        modifier = Modifier.fillMaxSize(),
+                        imageVector = Icons.Rounded.History,
+                        contentDescription = "History",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Card(
@@ -245,9 +284,13 @@ internal fun DownloaderScreenContent(
                                 progress = uiState.progress,
                                 downloadedFilePath = uiState.downloadedFilePath,
                                 selectedQuality = uiState.selectedQuality,
+                                selectedAudioFormat = uiState.selectedAudioFormat,
+                                selectedDownloadType = uiState.selectedDownloadType,
                                 onQualityChange = onQualityChange,
+                                onAudioFormatChange = onAudioFormatChange,
                                 onDownloadClick = onDownloadClick,
-                                onClearClick = { onUrlChange("") }
+                                onClearClick = { onUrlChange("") },
+                                onResetDownload = onResetDownload
                             )
                         }
                     }
@@ -273,10 +316,14 @@ private fun VideoInfoCard(
     isDownloading: Boolean,
     progress: Float?,
     downloadedFilePath: String?,
-    selectedQuality: VideoQuality,
+    selectedQuality: VideoQuality?,
+    selectedAudioFormat: AudioFormat?,
+    selectedDownloadType: DownloadType?,
     onQualityChange: (VideoQuality) -> Unit,
-    onDownloadClick: (DownloadType) -> Unit,
-    onClearClick: () -> Unit
+    onAudioFormatChange: (AudioFormat) -> Unit,
+    onDownloadClick: () -> Unit,
+    onClearClick: () -> Unit,
+    onResetDownload: () -> Unit
 ) {
     var hasStartedDownloading by remember { mutableStateOf(false) }
 
@@ -286,8 +333,12 @@ private fun VideoInfoCard(
         label = "ProgressAnimation"
     )
 
-    LaunchedEffect(isDownloading) {
-        if (isDownloading) hasStartedDownloading = true
+    LaunchedEffect(isDownloading, progress) {
+        if (isDownloading) {
+            hasStartedDownloading = true
+        } else if (progress == null) {
+            hasStartedDownloading = false
+        }
     }
 
     val showProgressPerimeter = hasStartedDownloading && animatedProgress < 0.99f
@@ -367,8 +418,7 @@ private fun VideoInfoCard(
                 ) { isDownloaded ->
                     if (isDownloaded && !downloadedFilePath.isNullOrBlank()) {
                         VideoPlayer(
-                            filePath = downloadedFilePath,
-                            onDismiss = onClearClick
+                            filePath = downloadedFilePath
                         )
                     } else {
                         Box {
@@ -396,6 +446,40 @@ private fun VideoInfoCard(
                         }
                     }
                 }
+
+                if (!downloadedFilePath.isNullOrBlank()) {
+                    IconButton(
+                        onClick = onResetDownload,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back to selection",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onClearClick,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Clear,
+                        contentDescription = "Clear",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             Column(modifier = Modifier.padding(20.dp)) {
@@ -407,23 +491,13 @@ private fun VideoInfoCard(
                     Text(
                         text = videoInfo.title ?: "Unknown Title",
                         style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
                             lineHeight = 28.sp
                         ),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-
-                    IconButton(
-                        onClick = onClearClick,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Clear,
-                            contentDescription = "Clear",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
                 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -434,61 +508,86 @@ private fun VideoInfoCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
-
                 if (!isDownloading && downloadedFilePath.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+
                     Text(
-                        text = "Download Quality",
+                        text = "Video Quality",
                         style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Row(
+                    LazyRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(end = 16.dp)
                     ) {
-                        VideoQuality.entries.forEach { quality ->
-                            QualityChip(
-                                quality = quality,
-                                selected = selectedQuality == quality,
-                                onClick = { onQualityChange(quality) },
-                                modifier = Modifier.weight(1f)
+                        items(videoInfo.qualities) { qualityInfo ->
+                            FormatChip(
+                                label = qualityInfo.quality.label,
+                                sizeLabel = qualityInfo.sizeBytes?.let { formatSize(it) },
+                                selected = selectedDownloadType == DownloadType.VIDEO && selectedQuality == qualityInfo.quality,
+                                onClick = { onQualityChange(qualityInfo.quality) },
+                                modifier = Modifier.width(90.dp)
                             )
                         }
                     }
+
                     Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Audio Format",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(end = 16.dp)
+                    ) {
+                        items(videoInfo.audioFormats) { audioInfo ->
+                            val bitrateLabel = audioInfo.bitrateKbps?.let { "${it}kbps" }
+                            val combinedLabel = if (bitrateLabel != null) {
+                                "${audioInfo.sizeBytes?.let { formatSize(it) } ?: ""} • $bitrateLabel"
+                            } else {
+                                audioInfo.sizeBytes?.let { formatSize(it) }
+                            }
+                            FormatChip(
+                                label = audioInfo.format.extension.uppercase(),
+                                sizeLabel = combinedLabel,
+                                selected = selectedDownloadType == DownloadType.AUDIO && selectedAudioFormat == audioInfo.format,
+                                onClick = { onAudioFormatChange(audioInfo.format) },
+                                modifier = Modifier.width(100.dp)
+                            )
+                        }
+                    }
                 }
-                
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 
                 Spacer(modifier = Modifier.height(20.dp))
 
                 if (isDownloading || showProgressPerimeter) {
                     DownloadProgressSection(progress = (animatedProgress * 100f), color = progressColor)
-                } else if (!downloadedFilePath.isNullOrBlank()) {
-                    DownloadSuccessSection()
-                } else {
-                    Row(
+                } else if (downloadedFilePath.isNullOrBlank()) {
+                    DownloadActionButton(
+                        text = when (selectedDownloadType) {
+                            DownloadType.VIDEO -> "Download Video"
+                            DownloadType.AUDIO -> "Download Audio"
+                            else -> "Download"
+                        },
+                        icon = when (selectedDownloadType) {
+                            DownloadType.VIDEO -> Icons.Rounded.Movie
+                            DownloadType.AUDIO -> Icons.Rounded.MusicNote
+                            else -> Icons.Rounded.Download
+                        },
+                        onClick = onDownloadClick,
+                        enabled = selectedDownloadType != null,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        DownloadActionButton(
-                            text = "Audio",
-                            icon = Icons.Rounded.MusicNote,
-                            onClick = { onDownloadClick(DownloadType.AUDIO) },
-                            modifier = Modifier.weight(1f),
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        DownloadActionButton(
-                            text = "Video",
-                            icon = Icons.Rounded.Movie,
-                            onClick = { onDownloadClick(DownloadType.VIDEO) },
-                            modifier = Modifier.weight(1f),
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }
@@ -496,19 +595,20 @@ private fun VideoInfoCard(
 }
 
 @Composable
-private fun QualityChip(
-    quality: VideoQuality,
+private fun FormatChip(
+    label: String,
+    sizeLabel: String?,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val backgroundColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        label = "QualityChipBg"
+        label = "FormatChipBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-        label = "QualityChipContent"
+        label = "FormatChipContent"
     )
 
     Surface(
@@ -517,20 +617,34 @@ private fun QualityChip(
         contentColor = contentColor,
         shape = RoundedCornerShape(12.dp),
         border = if (!selected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
-        modifier = modifier.height(40.dp)
+        modifier = modifier.height(52.dp)
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
-                text = quality.label,
-                style = MaterialTheme.typography.labelLarge
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                textAlign = TextAlign.Center
             )
+            if (sizeLabel != null) {
+                Text(
+                    text = sizeLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor.copy(alpha = 0.5f),
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
 
 @OptIn(UnstableApi::class)
 @Composable
-private fun VideoPlayer(filePath: String, onDismiss: () -> Unit) {
+private fun VideoPlayer(filePath: String) {
     val context = LocalContext.current
 
     val exoPlayer = remember(filePath) {
@@ -565,45 +679,25 @@ private fun VideoPlayer(filePath: String, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun DownloadSuccessSection() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Rounded.PlayArrow,
-            contentDescription = null,
-            tint = Color(0xFF4CAF50),
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "Ready to Play!",
-            style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFF4CAF50)
-        )
-    }
-}
-
-@Composable
 private fun DownloadActionButton(
     text: String,
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     containerColor: Color,
     contentColor: Color
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(52.dp),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
-            contentColor = contentColor
+            contentColor = contentColor,
+            disabledContainerColor = containerColor.copy(alpha = 0.5f),
+            disabledContentColor = contentColor.copy(alpha = 0.5f)
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
     ) {
@@ -735,6 +829,18 @@ private fun formatDuration(seconds: Int): String {
     }
 }
 
+private fun formatSize(bytes: Long): String {
+    if (bytes <= 0) return "Unknown"
+    val units = arrayOf("B", "KB", "MB", "GB")
+    var size = bytes.toDouble()
+    var unitIndex = 0
+    while (size > 1024 && unitIndex < units.size - 1) {
+        size /= 1024
+        unitIndex++
+    }
+    return String.format(Locale.US, "%.1f %s", size, units[unitIndex])
+}
+
 @Preview(showBackground = true, uiMode = UI_MODE_NIGHT_NO)
 @Composable
 private fun DownloaderScreenPreview() {
@@ -743,16 +849,69 @@ private fun DownloaderScreenPreview() {
             uiState = DownloaderUiState(
                 url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 videoInfo = VideoModel(
+                    id = "dQw4w9WgXcQ",
                     title = "Never Gonna Give You Up",
                     uploader = "Rick Astley",
                     duration = 212,
-                    thumbnail = "https://example.com/thumb.jpg"
+                    thumbnail = "https://example.com/thumb.jpg",
+                    qualities = listOf(
+                        QualityInfo(VideoQuality.P360, 4_200_000),
+                        QualityInfo(VideoQuality.P720, 12_500_000),
+                        QualityInfo(VideoQuality.P1080, 25_800_000),
+                        QualityInfo(VideoQuality.BEST, 25_800_000)
+                    ),
+                    audioFormats = listOf(
+                        AudioFormatInfo(AudioFormat.MP3, 3_200_000, 128),
+                        AudioFormatInfo(AudioFormat.M4A, 4_500_000, 256),
+                        AudioFormatInfo(AudioFormat.FLAC, 15_000_000, 800)
+                    )
                 )
             ),
             onUrlChange = {},
             onQualityChange = {},
+            onAudioFormatChange = {},
             onGetInfoClick = {},
-            onDownloadClick = {}
+            onDownloadClick = {},
+            onHistoryClick = {},
+            onResetDownload = {}
         )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun VideoInfoCardPreview() {
+    YoutubeDownloaderTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            VideoInfoCard(
+                videoInfo = VideoModel(
+                    id = "dQw4w9WgXcQ",
+                    title = "Sample Video with a very long title that might span multiple lines to test the UI layout and ensure everything is correctly aligned",
+                    uploader = "Creator Name",
+                    duration = 345,
+                    thumbnail = "https://example.com/thumb.jpg",
+                    qualities = listOf(
+                        QualityInfo(VideoQuality.P360, 5_000_000),
+                        QualityInfo(VideoQuality.P720, 15_000_000),
+                        QualityInfo(VideoQuality.P1080, 30_000_000)
+                    ),
+                    audioFormats = listOf(
+                        AudioFormatInfo(AudioFormat.MP3, 4_000_000, 128),
+                        AudioFormatInfo(AudioFormat.M4A, 6_000_000, 256)
+                    )
+                ),
+                isDownloading = false,
+                progress = null,
+                downloadedFilePath = null,
+                selectedQuality = null,
+                selectedAudioFormat = null,
+                selectedDownloadType = null,
+                onQualityChange = {},
+                onAudioFormatChange = {},
+                onDownloadClick = {},
+                onClearClick = {},
+                onResetDownload = {}
+            )
+        }
     }
 }
