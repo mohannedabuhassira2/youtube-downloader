@@ -7,7 +7,7 @@ data class VideoModel(
     val duration: Int,
     val uploader: String?,
     val qualities: List<QualityInfo> = emptyList(),
-    val audioFormats: List<AudioFormatInfo> = emptyList()
+    val audioQualities: List<AudioQualityInfo> = emptyList()
 )
 
 data class QualityInfo(
@@ -15,8 +15,7 @@ data class QualityInfo(
     val sizeBytes: Long? = null
 )
 
-data class AudioFormatInfo(
-    val format: AudioFormat,
-    val sizeBytes: Long? = null,
-    val bitrateKbps: Int? = null
+data class AudioQualityInfo(
+    val quality: AudioQuality,
+    val sizeBytes: Long? = null
 )

@@ -1,6 +1,6 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.presentation.ui
 
-import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormat
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
@@ -14,6 +14,6 @@ data class DownloaderUiState(
     val isDownloading: Boolean = false,
     val downloadedFilePath: String? = null,
     val selectedQuality: VideoQuality? = null,
-    val selectedAudioFormat: AudioFormat? = null,
+    val selectedAudioQuality: AudioQuality? = null,
     val selectedDownloadType: DownloadType? = null
 )

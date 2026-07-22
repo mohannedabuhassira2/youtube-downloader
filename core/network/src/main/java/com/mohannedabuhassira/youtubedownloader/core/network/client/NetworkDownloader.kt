@@ -56,7 +56,7 @@ class NetworkDownloader @Inject constructor(
             if (config.isAudioOnly) {
                 addOption("-x")
                 addOption("--audio-format", config.audioFormat)
-                addOption("--audio-quality", "0")
+                addOption("--audio-quality", config.audioQuality)
             } else {
                 addOption("-S", "res,ext:mp4:m4a")
                 addOption("-f", config.videoFormat)

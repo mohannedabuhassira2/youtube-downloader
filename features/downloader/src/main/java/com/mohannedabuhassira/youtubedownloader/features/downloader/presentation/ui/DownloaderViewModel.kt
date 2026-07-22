@@ -1,12 +1,13 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.presentation.ui
 
 import android.content.Context
+import android.media.MediaScannerConnection
 import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStatus
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
-import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormat
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadOptions
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -31,7 +33,14 @@ class DownloaderViewModel @Inject constructor(
     fun onUrlChange(newUrl: String) {
         _uiState.update { 
             if (newUrl.isEmpty()) {
-                it.copy(url = "", videoInfo = null, errorMessage = null, downloadedFilePath = null, progress = null, isDownloading = false)
+                it.copy(
+                    url = "", 
+                    videoInfo = null, 
+                    errorMessage = null, 
+                    downloadedFilePath = null, 
+                    progress = null, 
+                    isDownloading = false
+                )
             } else {
                 it.copy(url = newUrl)
             }
@@ -41,14 +50,14 @@ class DownloaderViewModel @Inject constructor(
     fun onQualityChange(quality: VideoQuality) {
         _uiState.update { it.copy(
             selectedQuality = quality,
-            selectedAudioFormat = null,
+            selectedAudioQuality = null,
             selectedDownloadType = DownloadType.VIDEO
         ) }
     }
 
-    fun onAudioFormatChange(format: AudioFormat) {
+    fun onAudioQualityChange(quality: AudioQuality) {
         _uiState.update { it.copy(
-            selectedAudioFormat = format,
+            selectedAudioQuality = quality,
             selectedQuality = null,
             selectedDownloadType = DownloadType.AUDIO
         ) }
@@ -56,17 +65,19 @@ class DownloaderViewModel @Inject constructor(
 
     fun fetchVideoInfo() {
         viewModelScope.launch {
-            _uiState.update { it.copy(
-                isLoading = true,
-                errorMessage = null,
-                videoInfo = null,
-                downloadedFilePath = null,
-                progress = null,
-                isDownloading = false,
-                selectedQuality = null,
-                selectedAudioFormat = null,
-                selectedDownloadType = null
-            ) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    videoInfo = null,
+                    downloadedFilePath = null,
+                    progress = null,
+                    isDownloading = false,
+                    selectedQuality = null,
+                    selectedAudioQuality = null,
+                    selectedDownloadType = null
+                )
+            }
             when (val result = repository.getInfo(_uiState.value.url)) {
                 is ApiResult.Success -> {
                     _uiState.update { it.copy(isLoading = false, videoInfo = result.data) }
@@ -84,8 +95,12 @@ class DownloaderViewModel @Inject constructor(
     fun startDownload() {
         viewModelScope.launch {
             val type = _uiState.value.selectedDownloadType ?: return@launch
-            val destination = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath 
-                ?: context.filesDir.absolutePath
+            
+            // For simplicity and visibility in gallery, we save to public Download/YoutubeDownloader
+            val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "YoutubeDownloader")
+            if (!publicDir.exists()) {
+                publicDir.mkdirs()
+            }
             
             val options = DownloadOptions(
                 url = _uiState.value.url,
@@ -93,10 +108,10 @@ class DownloaderViewModel @Inject constructor(
                 thumbnail = _uiState.value.videoInfo?.thumbnail,
                 duration = _uiState.value.videoInfo?.duration ?: 0,
                 uploader = _uiState.value.videoInfo?.uploader,
-                destinationPath = destination,
+                destinationPath = publicDir.absolutePath,
                 type = type,
-                videoQuality = _uiState.value.selectedQuality ?: VideoQuality.BEST,
-                audioFormat = _uiState.value.selectedAudioFormat ?: AudioFormat.MP3
+                videoQuality = _uiState.value.selectedQuality ?: VideoQuality.P144,
+                audioQuality = _uiState.value.selectedAudioQuality ?: AudioQuality.K128
             )
 
             repository
@@ -104,11 +119,22 @@ class DownloaderViewModel @Inject constructor(
                 .collect { result ->
                     when (result) {
                         is ApiResult.Success -> {
-                            _uiState.update { it.copy(
-                                isDownloading = false,
-                                progress = 100f,
-                                downloadedFilePath = (result.data as? DownloadStatus.Completed)?.filePath
-                            ) }
+                            val status = result.data as? DownloadStatus.Completed
+                            if (status != null) {
+                                // Trigger media scan so it shows up in Gallery/Audio manager
+                                MediaScannerConnection.scanFile(
+                                    context,
+                                    arrayOf(status.filePath),
+                                    null,
+                                    null
+                                )
+                                
+                                _uiState.update { it.copy(
+                                    isDownloading = false,
+                                    progress = 100f,
+                                    downloadedFilePath = status.filePath
+                                ) }
+                            }
                         }
                         is ApiResult.Error -> {
                             _uiState.update { it.copy(isDownloading = false, errorMessage = result.message) }
@@ -128,7 +154,7 @@ class DownloaderViewModel @Inject constructor(
                 progress = null,
                 isDownloading = false,
                 selectedQuality = null,
-                selectedAudioFormat = null,
+                selectedAudioQuality = null,
                 selectedDownloadType = null
             )
         }

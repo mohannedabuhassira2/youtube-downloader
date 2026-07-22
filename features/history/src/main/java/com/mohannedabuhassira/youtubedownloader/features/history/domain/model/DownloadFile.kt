@@ -1,7 +1,9 @@
 package com.mohannedabuhassira.youtubedownloader.features.history.domain.model
 
 data class DownloadFile(
+    val id: String,
     val title: String,
+    val quality: String?,
     val filePath: String,
     val thumbnail: String?,
     val type: DownloadFileType,

@@ -4,8 +4,8 @@ import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStat
 import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloader
 import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloadConfig
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
-import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormat
-import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormatInfo
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQuality
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQualityInfo
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadOptions
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.QualityInfo
@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
 import javax.inject.Singleton
-
 import java.io.File
 import kotlinx.coroutines.flow.onEach
 
@@ -33,28 +32,25 @@ class DownloaderRepositoryImpl @Inject constructor(
             val info = networkDownloader.getInfo(url)
             val formats = info.formats.orEmpty()
 
-            // Map qualities with estimated sizes, completely filtering out missing ones
+            // Map video qualities with estimated sizes (p)
             val qualities = VideoQuality.entries.mapNotNull { q ->
-                val format = if (q == VideoQuality.BEST) {
-                    formats.filter { it.height > 0 }.maxByOrNull { it.height }
-                } else {
-                    formats.find { it.height == q.height }
-                }
+                val format = formats.find { it.formatNote?.contains(q.label) == true }
 
-                when {
-                    format != null -> QualityInfo(q, format.fileSize)
-                    q == VideoQuality.BEST -> QualityInfo(q, null)
-                    else -> null
+                if (format != null) {
+                    QualityInfo(q, format.fileSize)
+                } else {
+                    null
                 }
             }
 
-            // Map audio formats with estimated sizes
-            val audioFormats = AudioFormat.entries.map { af ->
-                val audioOnly = formats.filter { it.vcodec == "none" }
-                val format = audioOnly.filter { it.ext == af.extension }.maxByOrNull { it.asr }
-                    ?: audioOnly.maxByOrNull { it.asr }
-
-                AudioFormatInfo(af, format?.fileSize, format?.abr?.toInt())
+            // Map audio qualities with estimated sizes (kps)
+            val durationSeconds = info.duration.toLong()
+            val audioQualities = AudioQuality.entries.map { aq ->
+                val estimatedSizeBytes = if (durationSeconds > 0) {
+                    (aq.kbps * 1000L * durationSeconds) / 8
+                } else null
+                
+                AudioQualityInfo(aq, estimatedSizeBytes)
             }
 
             ApiResult.Success(
@@ -65,7 +61,7 @@ class DownloaderRepositoryImpl @Inject constructor(
                     duration = info.duration,
                     uploader = info.uploader,
                     qualities = qualities,
-                    audioFormats = audioFormats
+                    audioQualities = audioQualities
                 )
             )
         } catch (e: Exception) {
@@ -76,36 +72,36 @@ class DownloaderRepositoryImpl @Inject constructor(
     override fun download(
         options: DownloadOptions
     ): Flow<ApiResult<DownloadStatus>> {
-        val videoFormat = when (val quality = options.videoQuality) {
-            VideoQuality.BEST -> "bestvideo+bestaudio/best"
-            else -> {
-                val height = quality.name.removePrefix("P")
-                "bestvideo[height<=$height]+bestaudio/best[height<=$height]"
-            }
+        val videoFormat = if (options.type == DownloadType.VIDEO) {
+            val qualityLabel = options.videoQuality.label
+            "bestvideo[format_note*='$qualityLabel']+bestaudio/best"
+        } else {
+            "bestaudio/best"
         }
 
-        val qualitySuffix = if (options.type == DownloadType.VIDEO) " [${options.videoQuality.label}]" else ""
-        val titleWithQuality = "${options.title}$qualitySuffix"
+        val qualityLabel = if (options.type == DownloadType.VIDEO) options.videoQuality.label else options.audioQuality.label
+        val titleWithQuality = "${options.title} [$qualityLabel]"
 
         val config = NetworkDownloadConfig(
             url = options.url,
             title = titleWithQuality,
             destinationPath = options.destinationPath,
             isAudioOnly = options.type == DownloadType.AUDIO,
-            audioFormat = options.audioFormat.extension,
+            audioFormat = "mp3",
+            audioQuality = options.audioQuality.kbps.toString(),
             videoFormat = videoFormat
         )
 
         return networkDownloader.streamDownload(config)
             .onEach { result ->
                 if (result is DownloadStatus.Completed) {
-                    options.thumbnail?.let { url ->
-                        try {
-                            val file = File("${result.filePath}.thumb")
-                            file.writeText(url)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                    try {
+                        val thumbFile = File("${result.filePath}.thumb")
+                        val qualityLabel = if (options.type == DownloadType.VIDEO) options.videoQuality.label else options.audioQuality.label
+                        val metadata = "${options.thumbnail ?: ""}|$qualityLabel|${options.type.name}"
+                        thumbFile.writeText(metadata)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
             }.map { status ->

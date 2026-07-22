@@ -22,6 +22,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -31,12 +32,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadType
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -91,7 +91,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_NO
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,8 +102,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import com.mohannedabuhassira.youtubedownloader.core.designsystem.theme.YoutubeDownloaderTheme
-import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormat
-import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioFormatInfo
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQuality
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQualityInfo
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.QualityInfo
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
@@ -122,7 +121,7 @@ fun DownloaderScreen(
         uiState = uiState,
         onUrlChange = viewModel::onUrlChange,
         onQualityChange = viewModel::onQualityChange,
-        onAudioFormatChange = viewModel::onAudioFormatChange,
+        onAudioQualityChange = viewModel::onAudioQualityChange,
         onGetInfoClick = viewModel::fetchVideoInfo,
         onDownloadClick = viewModel::startDownload,
         onHistoryClick = onNavigateToHistory,
@@ -135,7 +134,7 @@ internal fun DownloaderScreenContent(
     uiState: DownloaderUiState,
     onUrlChange: (String) -> Unit,
     onQualityChange: (VideoQuality) -> Unit,
-    onAudioFormatChange: (AudioFormat) -> Unit,
+    onAudioQualityChange: (AudioQuality) -> Unit,
     onGetInfoClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onHistoryClick: () -> Unit,
@@ -284,10 +283,10 @@ internal fun DownloaderScreenContent(
                                 progress = uiState.progress,
                                 downloadedFilePath = uiState.downloadedFilePath,
                                 selectedQuality = uiState.selectedQuality,
-                                selectedAudioFormat = uiState.selectedAudioFormat,
+                                selectedAudioQuality = uiState.selectedAudioQuality,
                                 selectedDownloadType = uiState.selectedDownloadType,
                                 onQualityChange = onQualityChange,
-                                onAudioFormatChange = onAudioFormatChange,
+                                onAudioQualityChange = onAudioQualityChange,
                                 onDownloadClick = onDownloadClick,
                                 onClearClick = { onUrlChange("") },
                                 onResetDownload = onResetDownload
@@ -317,10 +316,10 @@ private fun VideoInfoCard(
     progress: Float?,
     downloadedFilePath: String?,
     selectedQuality: VideoQuality?,
-    selectedAudioFormat: AudioFormat?,
+    selectedAudioQuality: AudioQuality?,
     selectedDownloadType: DownloadType?,
     onQualityChange: (VideoQuality) -> Unit,
-    onAudioFormatChange: (AudioFormat) -> Unit,
+    onAudioQualityChange: (AudioQuality) -> Unit,
     onDownloadClick: () -> Unit,
     onClearClick: () -> Unit,
     onResetDownload: () -> Unit
@@ -537,7 +536,7 @@ private fun VideoInfoCard(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Text(
-                        text = "Audio Format",
+                        text = "Audio Quality",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -548,19 +547,13 @@ private fun VideoInfoCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(end = 16.dp)
                     ) {
-                        items(videoInfo.audioFormats) { audioInfo ->
-                            val bitrateLabel = audioInfo.bitrateKbps?.let { "${it}kbps" }
-                            val combinedLabel = if (bitrateLabel != null) {
-                                "${audioInfo.sizeBytes?.let { formatSize(it) } ?: ""} • $bitrateLabel"
-                            } else {
-                                audioInfo.sizeBytes?.let { formatSize(it) }
-                            }
+                        items(videoInfo.audioQualities) { qualityInfo ->
                             FormatChip(
-                                label = audioInfo.format.extension.uppercase(),
-                                sizeLabel = combinedLabel,
-                                selected = selectedDownloadType == DownloadType.AUDIO && selectedAudioFormat == audioInfo.format,
-                                onClick = { onAudioFormatChange(audioInfo.format) },
-                                modifier = Modifier.width(100.dp)
+                                label = qualityInfo.quality.label,
+                                sizeLabel = qualityInfo.sizeBytes?.let { formatSize(it) },
+                                selected = selectedDownloadType == DownloadType.AUDIO && selectedAudioQuality == qualityInfo.quality,
+                                onClick = { onAudioQualityChange(qualityInfo.quality) },
+                                modifier = Modifier.width(90.dp)
                             )
                         }
                     }
@@ -649,7 +642,12 @@ private fun VideoPlayer(filePath: String) {
 
     val exoPlayer = remember(filePath) {
         ExoPlayer.Builder(context).build().apply {
-            val mediaItem = MediaItem.fromUri(Uri.fromFile(File(filePath)))
+            val uri = if (filePath.startsWith("content://")) {
+                Uri.parse(filePath)
+            } else {
+                Uri.fromFile(File(filePath))
+            }
+            val mediaItem = MediaItem.fromUri(uri)
             setMediaItem(mediaItem)
             prepare()
             playWhenReady = true
@@ -841,7 +839,7 @@ private fun formatSize(bytes: Long): String {
     return String.format(Locale.US, "%.1f %s", size, units[unitIndex])
 }
 
-@Preview(showBackground = true, uiMode = UI_MODE_NIGHT_NO)
+@Preview(showBackground = true)
 @Composable
 private fun DownloaderScreenPreview() {
     YoutubeDownloaderTheme {
@@ -857,19 +855,18 @@ private fun DownloaderScreenPreview() {
                     qualities = listOf(
                         QualityInfo(VideoQuality.P360, 4_200_000),
                         QualityInfo(VideoQuality.P720, 12_500_000),
-                        QualityInfo(VideoQuality.P1080, 25_800_000),
-                        QualityInfo(VideoQuality.BEST, 25_800_000)
+                        QualityInfo(VideoQuality.P1080, 25_800_000)
                     ),
-                    audioFormats = listOf(
-                        AudioFormatInfo(AudioFormat.MP3, 3_200_000, 128),
-                        AudioFormatInfo(AudioFormat.M4A, 4_500_000, 256),
-                        AudioFormatInfo(AudioFormat.FLAC, 15_000_000, 800)
+                    audioQualities = listOf(
+                        AudioQualityInfo(AudioQuality.K128, 2_000_000),
+                        AudioQualityInfo(AudioQuality.K192, 3_000_000),
+                        AudioQualityInfo(AudioQuality.K320, 5_000_000)
                     )
                 )
             ),
             onUrlChange = {},
             onQualityChange = {},
-            onAudioFormatChange = {},
+            onAudioQualityChange = {},
             onGetInfoClick = {},
             onDownloadClick = {},
             onHistoryClick = {},
@@ -895,19 +892,19 @@ private fun VideoInfoCardPreview() {
                         QualityInfo(VideoQuality.P720, 15_000_000),
                         QualityInfo(VideoQuality.P1080, 30_000_000)
                     ),
-                    audioFormats = listOf(
-                        AudioFormatInfo(AudioFormat.MP3, 4_000_000, 128),
-                        AudioFormatInfo(AudioFormat.M4A, 6_000_000, 256)
+                    audioQualities = listOf(
+                        AudioQualityInfo(AudioQuality.K128, 4_000_000),
+                        AudioQualityInfo(AudioQuality.K320, 8_000_000)
                     )
                 ),
                 isDownloading = false,
                 progress = null,
                 downloadedFilePath = null,
                 selectedQuality = null,
-                selectedAudioFormat = null,
+                selectedAudioQuality = null,
                 selectedDownloadType = null,
                 onQualityChange = {},
-                onAudioFormatChange = {},
+                onAudioQualityChange = {},
                 onDownloadClick = {},
                 onClearClick = {},
                 onResetDownload = {}

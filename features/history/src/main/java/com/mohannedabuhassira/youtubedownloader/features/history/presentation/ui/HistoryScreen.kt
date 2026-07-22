@@ -56,6 +56,7 @@ import com.mohannedabuhassira.youtubedownloader.features.history.domain.model.Do
 import com.mohannedabuhassira.youtubedownloader.features.history.domain.model.DownloadFormat
 import java.io.File
 import java.util.Locale
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,8 +149,9 @@ private fun HistoryItem(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(4.dp)
                     ) {
+                        val label = "${item.format.name} • ${item.quality}"
                         Text(
-                            text = item.format.name,
+                            text = label,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                             color = MaterialTheme.colorScheme.primary,
@@ -207,12 +209,17 @@ private fun HistoryItem(
 }
 
 private fun playFile(context: Context, filePath: String) {
-    val file = File(filePath)
-    if (!file.exists()) return
     try {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val uri = if (filePath.startsWith("content://")) {
+            filePath.toUri()
+        } else {
+            val file = File(filePath)
+            if (!file.exists()) return
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        }
+        
         val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, if (filePath.endsWith("mp4")) "video/*" else "audio/*")
+            setDataAndType(uri, if (filePath.contains("mp4") || filePath.contains("video")) "video/*" else "audio/*")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(intent)
@@ -222,12 +229,17 @@ private fun playFile(context: Context, filePath: String) {
 }
 
 private fun shareFile(context: Context, filePath: String) {
-    val file = File(filePath)
-    if (!file.exists()) return
     try {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val uri = if (filePath.startsWith("content://")) {
+            filePath.toUri()
+        } else {
+            val file = File(filePath)
+            if (!file.exists()) return
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        }
+
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = if (filePath.endsWith("mp4")) "video/*" else "audio/*"
+            type = if (filePath.contains("mp4") || filePath.contains("video")) "video/*" else "audio/*"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -323,7 +335,9 @@ private fun HistoryScreenPreview() {
         HistoryScreenContent(
             historyItems = listOf(
                 DownloadFile(
+                    id = "1",
                     title = "Rick Astley - Never Gonna Give You Up",
+                    quality = "1080p",
                     filePath = "/path/to/video.mp4",
                     thumbnail = "https://example.com/thumb.jpg",
                     type = DownloadFileType.VIDEO,
@@ -332,7 +346,9 @@ private fun HistoryScreenPreview() {
                     sizeBytes = 25_800_000
                 ),
                 DownloadFile(
+                    id = "2",
                     title = "Chill Lofi Beats 2024",
+                    quality = "320kbps",
                     filePath = "/path/to/music.mp3",
                     thumbnail = "https://example.com/audio_thumb.jpg",
                     type = DownloadFileType.AUDIO,
@@ -341,11 +357,13 @@ private fun HistoryScreenPreview() {
                     sizeBytes = 5_200_000
                 ),
                 DownloadFile(
+                    id = "3",
                     title = "Android Development Tutorial for Beginners - Full Course",
+                    quality = "720p",
                     filePath = "/path/to/tutorial.mp4",
                     thumbnail = null,
                     type = DownloadFileType.VIDEO,
-                    format = DownloadFormat.M4A,
+                    format = DownloadFormat.MP4,
                     timestamp = System.currentTimeMillis() - 172800000,
                     sizeBytes = 150_000_000
                 )

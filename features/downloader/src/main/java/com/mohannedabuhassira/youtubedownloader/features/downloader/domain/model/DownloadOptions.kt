@@ -8,29 +8,31 @@ data class DownloadOptions(
     val uploader: String?,
     val destinationPath: String,
     val type: DownloadType,
-    val videoQuality: VideoQuality = VideoQuality.BEST,
-    val audioFormat: AudioFormat = AudioFormat.MP3
+    val videoQuality: VideoQuality = VideoQuality.P144,
+    val audioQuality: AudioQuality = AudioQuality.K128
 )
 
 enum class DownloadType {
     AUDIO, VIDEO
 }
 
-enum class VideoQuality(val label: String, val height: Int) {
-    P144("144p", 144),
-    P240("240p", 240),
-    P360("360p", 360),
-    P480("480p", 480),
-    P720("720p", 720),
-    P1080("1080p", 1080),
-    P1440("2K", 1440),
-    P2160("4K", 2160),
-    BEST("Best", 0)
+enum class VideoQuality(val label: String) {
+    P144("144p"),
+    P240("240p"),
+    P360("360p"),
+    P480("480p"),
+    P720("720p"),
+    P1080("1080p"),
+    P1440("1440p"),
+    P2160("2160p")
 }
 
-enum class AudioFormat(val extension: String) {
-    MP3("mp3"),
-    M4A("m4a"),
-    WAV("wav"),
-    FLAC("flac")
+enum class AudioQuality(val kbps: Int) {
+    K64(64),
+    K128(128),
+    K192(192),
+    K256(256),
+    K320(320);
+
+    val label: String get() = "${kbps}kbps"
 }
