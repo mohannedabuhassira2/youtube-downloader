@@ -1,8 +1,5 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.presentation.ui
 
-import android.content.Context
-import android.media.MediaScannerConnection
-import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStatus
@@ -13,19 +10,16 @@ import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.repository.DownloaderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
 class DownloaderViewModel @Inject constructor(
-    private val repository: DownloaderRepository,
-    @ApplicationContext private val context: Context
+    private val repository: DownloaderRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DownloaderUiState())
     val uiState: StateFlow<DownloaderUiState> = _uiState.asStateFlow()
@@ -95,20 +89,14 @@ class DownloaderViewModel @Inject constructor(
     fun startDownload() {
         viewModelScope.launch {
             val type = _uiState.value.selectedDownloadType ?: return@launch
-            
-            // For simplicity and visibility in gallery, we save to public Download/YoutubeDownloader
-            val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "YoutubeDownloader")
-            if (!publicDir.exists()) {
-                publicDir.mkdirs()
-            }
+            val videoInfo = _uiState.value.videoInfo ?: return@launch
             
             val options = DownloadOptions(
                 url = _uiState.value.url,
-                title = _uiState.value.videoInfo?.title,
-                thumbnail = _uiState.value.videoInfo?.thumbnail,
-                duration = _uiState.value.videoInfo?.duration ?: 0,
-                uploader = _uiState.value.videoInfo?.uploader,
-                destinationPath = publicDir.absolutePath,
+                title = videoInfo.title,
+                thumbnail = videoInfo.thumbnail,
+                duration = videoInfo.duration,
+                uploader = videoInfo.uploader,
                 type = type,
                 videoQuality = _uiState.value.selectedQuality ?: VideoQuality.P144,
                 audioQuality = _uiState.value.selectedAudioQuality ?: AudioQuality.K128
@@ -120,21 +108,11 @@ class DownloaderViewModel @Inject constructor(
                     when (result) {
                         is ApiResult.Success -> {
                             val status = result.data as? DownloadStatus.Completed
-                            if (status != null) {
-                                // Trigger media scan so it shows up in Gallery/Audio manager
-                                MediaScannerConnection.scanFile(
-                                    context,
-                                    arrayOf(status.filePath),
-                                    null,
-                                    null
-                                )
-                                
-                                _uiState.update { it.copy(
-                                    isDownloading = false,
-                                    progress = 100f,
-                                    downloadedFilePath = status.filePath
-                                ) }
-                            }
+                            _uiState.update { it.copy(
+                                isDownloading = false,
+                                progress = 100f,
+                                downloadedFilePath = status?.filePath
+                            ) }
                         }
                         is ApiResult.Error -> {
                             _uiState.update { it.copy(isDownloading = false, errorMessage = result.message) }

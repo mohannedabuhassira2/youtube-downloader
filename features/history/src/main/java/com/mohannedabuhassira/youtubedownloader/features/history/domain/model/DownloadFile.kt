@@ -1,7 +1,7 @@
 package com.mohannedabuhassira.youtubedownloader.features.history.domain.model
 
 data class DownloadFile(
-    val id: String,
+    val id: Long,
     val title: String,
     val quality: String?,
     val filePath: String,
@@ -9,11 +9,16 @@ data class DownloadFile(
     val type: DownloadFileType,
     val format: DownloadFormat,
     val timestamp: Long,
-    val sizeBytes: Long
+    val sizeBytes: Long,
+    val status: DownloadStatus = DownloadStatus.COMPLETED
 )
 
 enum class DownloadFileType {
     AUDIO, VIDEO
+}
+
+enum class DownloadStatus {
+    COMPLETED, MISSING
 }
 
 enum class DownloadFormat(val extension: String) {

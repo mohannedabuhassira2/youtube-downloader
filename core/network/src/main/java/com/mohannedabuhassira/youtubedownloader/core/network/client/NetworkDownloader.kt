@@ -4,12 +4,14 @@ import android.util.Log
 import com.farimarwat.commons.VideoInfo
 import com.farimarwat.library.YoutubeDL
 import com.farimarwat.commons.YoutubeDLRequest
+import com.mohannedabuhassira.youtubedownloader.core.network.di.DownloadLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -17,7 +19,8 @@ import kotlin.coroutines.resumeWithException
 
 @Singleton
 class NetworkDownloader @Inject constructor(
-    private val youtubeDLEngine: YoutubeDL
+    private val youtubeDLEngine: YoutubeDL,
+    @DownloadLocation private val downloadLocation: File
 ) {
     suspend fun getInfo(
         url: String
@@ -45,8 +48,15 @@ class NetworkDownloader @Inject constructor(
     fun streamDownload(
         config: NetworkDownloadConfig
     ): Flow<DownloadStatus> = callbackFlow {
+        val finalPath = downloadLocation.absolutePath
+
+        val destinationDir = File(finalPath)
+        if (!destinationDir.exists()) {
+            destinationDir.mkdirs()
+        }
+
         val request = YoutubeDLRequest(config.url).apply {
-            val outputTemplate = "${config.destinationPath}/${config.title}.%(ext)s"
+            val outputTemplate = "$finalPath/${config.title}.%(ext)s"
             addOption("-o", outputTemplate)
             addOption("--extractor-args", "youtube:player_client=android_vr")
             addOption("--no-playlist")
@@ -86,7 +96,7 @@ class NetworkDownloader @Inject constructor(
                 trySend(DownloadStatus.Progress(100f))
 
                 val extension = if (config.isAudioOnly) config.audioFormat else "mp4"
-                val filePath = "${config.destinationPath}/${config.title}.$extension"
+                val filePath = "$finalPath/${config.title}.$extension"
 
                 Log.d("NetworkDownloader", "Final file path: $filePath")
                 trySend(DownloadStatus.Completed(filePath))

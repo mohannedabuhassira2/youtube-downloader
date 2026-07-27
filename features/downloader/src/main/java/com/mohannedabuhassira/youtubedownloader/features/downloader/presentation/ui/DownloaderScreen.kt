@@ -75,6 +75,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
+import android.util.Log
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
@@ -95,6 +96,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -641,14 +643,25 @@ private fun VideoPlayer(filePath: String) {
     val context = LocalContext.current
 
     val exoPlayer = remember(filePath) {
-        ExoPlayer.Builder(context).build().apply {
-            val uri = if (filePath.startsWith("content://")) {
-                Uri.parse(filePath)
-            } else {
-                Uri.fromFile(File(filePath))
+        val file = File(filePath)
+        val uri = if (filePath.startsWith("content://")) {
+            Uri.parse(filePath)
+        } else {
+            // Using FileProvider even internally is safer for Scoped Storage compatibility
+            try {
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+            } catch (e: Exception) {
+                // If FileProvider fails, fallback to raw file URI (works in private storage)
+                Uri.fromFile(file)
             }
-            val mediaItem = MediaItem.fromUri(uri)
-            setMediaItem(mediaItem)
+        }
+        
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(uri))
             prepare()
             playWhenReady = true
         }

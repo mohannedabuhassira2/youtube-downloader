@@ -20,6 +20,7 @@ rootProject.name = "Youtube Downloader"
 include(":app")
 include(":core:designsystem")
 include(":core:network")
+include(":core:storage")
 include(":features:downloader")
 include(":features:history")
 include(":testing:unit")

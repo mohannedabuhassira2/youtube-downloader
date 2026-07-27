@@ -2,37 +2,17 @@ package com.mohannedabuhassira.youtubedownloader.features.history.presentation.u
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Movie
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,9 +31,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.compose.AsyncImage
 import com.mohannedabuhassira.youtubedownloader.core.designsystem.theme.YoutubeDownloaderTheme
-import com.mohannedabuhassira.youtubedownloader.features.history.domain.model.DownloadFile
-import com.mohannedabuhassira.youtubedownloader.features.history.domain.model.DownloadFileType
-import com.mohannedabuhassira.youtubedownloader.features.history.domain.model.DownloadFormat
+import com.mohannedabuhassira.youtubedownloader.features.history.domain.model.*
 import java.io.File
 import java.util.Locale
 import androidx.core.net.toUri
@@ -89,7 +67,12 @@ private fun HistoryItem(
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (item.status == DownloadStatus.MISSING) 
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+            else 
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -106,11 +89,20 @@ private fun HistoryItem(
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = item.thumbnail ?: item.filePath,
+                    model = item.thumbnail,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
+                
+                if (item.thumbnail == null) {
+                    Icon(
+                        imageVector = if (item.type == DownloadFileType.AUDIO) Icons.Rounded.MusicNote else Icons.Rounded.Movie,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                    )
+                }
                 
                 // Overlay Icon for Type
                 Surface(
@@ -139,29 +131,40 @@ private fun HistoryItem(
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = if (item.status == DownloadStatus.MISSING) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
+                
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = 2.dp)
                 ) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        color = if (item.status == DownloadStatus.MISSING) 
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.1f) 
+                        else 
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(4.dp)
                     ) {
-                        val label = "${item.format.name} • ${item.quality}"
                         Text(
-                            text = label,
+                            text = "${item.format.name} • ${item.quality}",
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = if (item.status == DownloadStatus.MISSING) 
+                                MaterialTheme.colorScheme.error 
+                            else 
+                                MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                     }
+
                     Text(
                         text = " • ${formatSize(item.sizeBytes)}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (item.status == DownloadStatus.MISSING) 
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.7f) 
+                        else 
+                            MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -170,28 +173,31 @@ private fun HistoryItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                IconButton(
-                    onClick = onPlay,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Rounded.PlayArrow,
-                        contentDescription = "Play",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                if (item.status == DownloadStatus.COMPLETED) {
+                    IconButton(
+                        onClick = onPlay,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.PlayArrow,
+                            contentDescription = "Play",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onShare,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Share,
+                            contentDescription = "Share",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
-                IconButton(
-                    onClick = onShare,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Rounded.Share,
-                        contentDescription = "Share",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier.size(32.dp)
@@ -210,12 +216,17 @@ private fun HistoryItem(
 
 private fun playFile(context: Context, filePath: String) {
     try {
+        val file = File(filePath)
+        if (!file.exists()) return
+        
         val uri = if (filePath.startsWith("content://")) {
             filePath.toUri()
         } else {
-            val file = File(filePath)
-            if (!file.exists()) return
-            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
         }
         
         val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -231,7 +242,7 @@ private fun playFile(context: Context, filePath: String) {
 private fun shareFile(context: Context, filePath: String) {
     try {
         val uri = if (filePath.startsWith("content://")) {
-            filePath.toUri()
+            Uri.parse(filePath)
         } else {
             val file = File(filePath)
             if (!file.exists()) return
@@ -335,7 +346,7 @@ private fun HistoryScreenPreview() {
         HistoryScreenContent(
             historyItems = listOf(
                 DownloadFile(
-                    id = "1",
+                    id = 1L,
                     title = "Rick Astley - Never Gonna Give You Up",
                     quality = "1080p",
                     filePath = "/path/to/video.mp4",
@@ -343,10 +354,11 @@ private fun HistoryScreenPreview() {
                     type = DownloadFileType.VIDEO,
                     format = DownloadFormat.MP4,
                     timestamp = System.currentTimeMillis(),
-                    sizeBytes = 25_800_000
+                    sizeBytes = 25_800_000,
+                    status = DownloadStatus.COMPLETED
                 ),
                 DownloadFile(
-                    id = "2",
+                    id = 2L,
                     title = "Chill Lofi Beats 2024",
                     quality = "320kbps",
                     filePath = "/path/to/music.mp3",
@@ -354,18 +366,20 @@ private fun HistoryScreenPreview() {
                     type = DownloadFileType.AUDIO,
                     format = DownloadFormat.MP3,
                     timestamp = System.currentTimeMillis() - 86400000,
-                    sizeBytes = 5_200_000
+                    sizeBytes = 5_200_000,
+                    status = DownloadStatus.COMPLETED
                 ),
                 DownloadFile(
-                    id = "3",
-                    title = "Android Development Tutorial for Beginners - Full Course",
-                    quality = "720p",
-                    filePath = "/path/to/tutorial.mp4",
+                    id = 4L,
+                    title = "Missing File Example",
+                    quality = "1080p",
+                    filePath = "/missing/path.mp4",
                     thumbnail = null,
                     type = DownloadFileType.VIDEO,
                     format = DownloadFormat.MP4,
                     timestamp = System.currentTimeMillis() - 172800000,
-                    sizeBytes = 150_000_000
+                    sizeBytes = 150_000_000,
+                    status = DownloadStatus.MISSING
                 )
             ),
             onBack = {},

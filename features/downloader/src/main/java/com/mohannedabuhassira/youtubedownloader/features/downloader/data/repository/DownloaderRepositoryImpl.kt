@@ -1,8 +1,14 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.data.repository
 
+import android.content.Context
+import android.media.MediaScannerConnection
 import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStatus
 import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloader
 import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloadConfig
+import com.mohannedabuhassira.youtubedownloader.core.storage.dao.MediaItemDao
+import com.mohannedabuhassira.youtubedownloader.core.storage.entity.MediaItemEntity
+import com.mohannedabuhassira.youtubedownloader.core.storage.entity.MediaType
+import com.mohannedabuhassira.youtubedownloader.core.storage.entity.DownloadStatus as StorageDownloadStatus
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQualityInfo
@@ -12,6 +18,7 @@ import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.repository.DownloaderRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -23,7 +30,9 @@ import kotlinx.coroutines.flow.onEach
 
 @Singleton
 class DownloaderRepositoryImpl @Inject constructor(
-    private val networkDownloader: NetworkDownloader
+    private val networkDownloader: NetworkDownloader,
+    private val mediaItemDao: MediaItemDao,
+    @ApplicationContext private val context: Context
 ) : DownloaderRepository {
     override suspend fun getInfo(
         url: String
@@ -32,12 +41,19 @@ class DownloaderRepositoryImpl @Inject constructor(
             val info = networkDownloader.getInfo(url)
             val formats = info.formats.orEmpty()
 
+            // Video formats usually don't include audio size in metadata
+            // We find the best audio-only stream to add its size to the video estimate
+            val bestAudioSize = formats
+                .filter { it.vcodec == "none" && it.acodec != "none" }
+                .maxByOrNull { it.abr }?.fileSize ?: 0L
+
             // Map video qualities with estimated sizes (p)
             val qualities = VideoQuality.entries.mapNotNull { q ->
                 val format = formats.find { it.formatNote?.contains(q.label) == true }
 
                 if (format != null) {
-                    QualityInfo(q, format.fileSize)
+                    val totalSize = format.fileSize + bestAudioSize
+                    QualityInfo(q, if (totalSize > 0L) totalSize else null)
                 } else {
                     null
                 }
@@ -85,7 +101,6 @@ class DownloaderRepositoryImpl @Inject constructor(
         val config = NetworkDownloadConfig(
             url = options.url,
             title = titleWithQuality,
-            destinationPath = options.destinationPath,
             isAudioOnly = options.type == DownloadType.AUDIO,
             audioFormat = "mp3",
             audioQuality = options.audioQuality.kbps.toString(),
@@ -96,10 +111,28 @@ class DownloaderRepositoryImpl @Inject constructor(
             .onEach { result ->
                 if (result is DownloadStatus.Completed) {
                     try {
-                        val thumbFile = File("${result.filePath}.thumb")
-                        val qualityLabel = if (options.type == DownloadType.VIDEO) options.videoQuality.label else options.audioQuality.label
-                        val metadata = "${options.thumbnail ?: ""}|$qualityLabel|${options.type.name}"
-                        thumbFile.writeText(metadata)
+                        val file = File(result.filePath)
+                        val sizeBytes = file.length()
+
+                        // Save to database only on completion
+                        val entity = MediaItemEntity(
+                            title = options.title ?: "Unknown",
+                            mediaType = if (options.type == DownloadType.AUDIO) MediaType.AUDIO else MediaType.VIDEO,
+                            quality = qualityLabel,
+                            remoteUrl = options.url,
+                            localFilePath = result.filePath,
+                            thumbnailUrl = options.thumbnail,
+                            downloadStatus = StorageDownloadStatus.COMPLETED,
+                            durationMs = options.duration.toLong() * 1000L,
+                            sizeBytes = sizeBytes
+                        )
+                        mediaItemDao.insertMediaItem(entity)
+                        MediaScannerConnection.scanFile(
+                            context,
+                            arrayOf(result.filePath),
+                            null,
+                            null
+                        )
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }

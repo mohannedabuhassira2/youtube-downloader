@@ -6,7 +6,6 @@ data class DownloadOptions(
     val thumbnail: String?,
     val duration: Int,
     val uploader: String?,
-    val destinationPath: String,
     val type: DownloadType,
     val videoQuality: VideoQuality = VideoQuality.P144,
     val audioQuality: AudioQuality = AudioQuality.K128
