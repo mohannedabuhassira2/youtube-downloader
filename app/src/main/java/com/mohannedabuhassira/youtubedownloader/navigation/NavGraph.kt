@@ -1,7 +1,5 @@
 package com.mohannedabuhassira.youtubedownloader.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -16,36 +14,21 @@ fun YoutubeDownloaderNavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = "downloader",
-        enterTransition = {
-            slideIntoContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.Left,
-            )
-        },
-        exitTransition = {
-            slideOutOfContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.Left,
-            )
-        },
-        popEnterTransition = {
-            slideIntoContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.Right,
-            )
-        },
-        popExitTransition = {
-            slideOutOfContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.Right,
-            )
-        }
+        startDestination = Screen.Downloader,
+        enterTransition = { slideInToLeft() },
+        exitTransition = { slideOutToLeft() },
+        popEnterTransition = { slideInToRight() },
+        popExitTransition = { slideOutToRight() }
     ) {
-        composable("downloader") {
+        composable<Screen.Downloader> {
             DownloaderScreen(
                 onNavigateToHistory = {
-                    navController.navigate("history")
+                    navController.navigate(Screen.History)
                 }
             )
         }
-        composable("history") {
+
+        composable<Screen.History> {
             HistoryScreen(
                 onBack = {
                     navController.popBackStack()
