@@ -4,7 +4,7 @@ import androidx.room.TypeConverter
 import com.mohannedabuhassira.youtubedownloader.core.storage.entity.DownloadStatus
 import com.mohannedabuhassira.youtubedownloader.core.storage.entity.MediaType
 
-class StorageConverters {
+internal class StorageConverters {
     @TypeConverter
     fun fromMediaType(value: MediaType): String = value.name
 

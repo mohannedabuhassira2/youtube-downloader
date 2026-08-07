@@ -10,7 +10,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class HistoryModule {
+internal abstract class HistoryModule {
     @Binds
     @Singleton
     abstract fun bindHistoryRepository(

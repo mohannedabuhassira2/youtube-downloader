@@ -1,6 +1,6 @@
 package com.mohannedabuhassira.youtubedownloader.features.history.domain.model
 
-data class DownloadFile(
+internal data class DownloadFile(
     val id: Long,
     val title: String,
     val quality: String?,
@@ -13,15 +13,15 @@ data class DownloadFile(
     val status: DownloadStatus = DownloadStatus.COMPLETED
 )
 
-enum class DownloadFileType {
+internal enum class DownloadFileType {
     AUDIO, VIDEO
 }
 
-enum class DownloadStatus {
+internal enum class DownloadStatus {
     COMPLETED, MISSING
 }
 
-enum class DownloadFormat(val extension: String) {
+internal enum class DownloadFormat(val extension: String) {
     MP3("mp3"),
     MP4("mp4"),
     M4A("m4a"),

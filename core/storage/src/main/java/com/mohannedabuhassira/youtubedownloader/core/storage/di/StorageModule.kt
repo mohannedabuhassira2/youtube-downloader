@@ -2,7 +2,7 @@ package com.mohannedabuhassira.youtubedownloader.core.storage.di
 
 import android.content.Context
 import androidx.room.Room
-import com.mohannedabuhassira.youtubedownloader.core.storage.YoutubeDownloaderDatabase
+import com.mohannedabuhassira.youtubedownloader.core.storage.database.YoutubeDownloaderDatabase
 import com.mohannedabuhassira.youtubedownloader.core.storage.dao.MediaItemDao
 import dagger.Module
 import dagger.Provides
@@ -13,8 +13,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object StorageModule {
-
+internal object StorageModule {
     private const val DATABASE_NAME = "youtube_downloader.db"
 
     @Provides
