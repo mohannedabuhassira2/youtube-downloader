@@ -6,7 +6,7 @@ import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
 import kotlinx.coroutines.flow.Flow
 
-interface DownloaderRepository {
+internal interface DownloaderRepository {
     suspend fun getInfo(url: String): ApiResult<VideoModel>
     fun download(options: DownloadOptions): Flow<ApiResult<DownloadStatus>>
 }

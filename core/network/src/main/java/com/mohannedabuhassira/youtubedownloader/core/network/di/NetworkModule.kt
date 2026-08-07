@@ -1,40 +1,37 @@
 package com.mohannedabuhassira.youtubedownloader.core.network.di
 
-import android.content.Context
-import android.os.Environment
-import com.mohannedabuhassira.youtubedownloader.core.network.factory.YoutubeDLFactory
 import com.farimarwat.library.YoutubeDL
+import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloader
+import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkDownloaderImpl
+import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkInitializer
+import com.mohannedabuhassira.youtubedownloader.core.network.client.NetworkInitializerImpl
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import java.io.File
-import javax.inject.Qualifier
 import javax.inject.Singleton
-
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class DownloadLocation
 
 @Module
 @InstallIn(SingletonComponent::class)
-internal object NetworkModule {
-    @Provides
+internal abstract class NetworkModule {
+    @Binds
     @Singleton
-    fun provideYoutubeDLEngine(
-        @ApplicationContext context: Context
-    ): YoutubeDL {
-        return YoutubeDLFactory.create(context)
-    }
-    
-    @Provides
+    abstract fun bindNetworkDownloader(
+        impl: NetworkDownloaderImpl
+    ): NetworkDownloader
+
+    @Binds
     @Singleton
-    @DownloadLocation
-    fun provideDownloadLocation(): File {
-        return File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "YoutubeDownloader"
-        )
+    abstract fun bindNetworkInitializer(
+        impl: NetworkInitializerImpl
+    ): NetworkInitializer
+
+    companion object {
+        @Provides
+        @Singleton
+        fun provideYoutubeDLEngine(): YoutubeDL {
+            return YoutubeDL.getInstance()
+        }
     }
 }

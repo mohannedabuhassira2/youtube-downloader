@@ -35,6 +35,7 @@ android {
 
 dependencies {
     implementation(project(":core:designsystem"))
+    implementation(project(":navigation"))
     implementation(project(":core:storage"))
     
     implementation(libs.hilt.android)

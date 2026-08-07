@@ -75,7 +75,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
-import android.util.Log
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
@@ -106,14 +105,14 @@ import coil3.compose.AsyncImage
 import com.mohannedabuhassira.youtubedownloader.core.designsystem.theme.YoutubeDownloaderTheme
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQualityInfo
-import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.QualityInfo
+import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQualityInfo
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoModel
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 import java.io.File
 import java.util.Locale
 
 @Composable
-fun DownloaderScreen(
+internal fun DownloaderScreen(
     onNavigateToHistory: () -> Unit,
     viewModel: DownloaderViewModel = hiltViewModel()
 ) {
@@ -132,7 +131,7 @@ fun DownloaderScreen(
 }
 
 @Composable
-internal fun DownloaderScreenContent(
+private fun DownloaderScreenContent(
     uiState: DownloaderUiState,
     onUrlChange: (String) -> Unit,
     onQualityChange: (VideoQuality) -> Unit,
@@ -866,9 +865,9 @@ private fun DownloaderScreenPreview() {
                     duration = 212,
                     thumbnail = "https://example.com/thumb.jpg",
                     qualities = listOf(
-                        QualityInfo(VideoQuality.P360, 4_200_000),
-                        QualityInfo(VideoQuality.P720, 12_500_000),
-                        QualityInfo(VideoQuality.P1080, 25_800_000)
+                        VideoQualityInfo(VideoQuality.P360, 4_200_000),
+                        VideoQualityInfo(VideoQuality.P720, 12_500_000),
+                        VideoQualityInfo(VideoQuality.P1080, 25_800_000)
                     ),
                     audioQualities = listOf(
                         AudioQualityInfo(AudioQuality.K128, 2_000_000),
@@ -901,9 +900,9 @@ private fun VideoInfoCardPreview() {
                     duration = 345,
                     thumbnail = "https://example.com/thumb.jpg",
                     qualities = listOf(
-                        QualityInfo(VideoQuality.P360, 5_000_000),
-                        QualityInfo(VideoQuality.P720, 15_000_000),
-                        QualityInfo(VideoQuality.P1080, 30_000_000)
+                        VideoQualityInfo(VideoQuality.P360, 5_000_000),
+                        VideoQualityInfo(VideoQuality.P720, 15_000_000),
+                        VideoQualityInfo(VideoQuality.P1080, 30_000_000)
                     ),
                     audioQualities = listOf(
                         AudioQualityInfo(AudioQuality.K128, 4_000_000),

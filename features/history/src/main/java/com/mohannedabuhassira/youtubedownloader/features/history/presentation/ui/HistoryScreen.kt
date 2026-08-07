@@ -38,7 +38,7 @@ import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(
+internal fun HistoryScreen(
     onBack: () -> Unit,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {

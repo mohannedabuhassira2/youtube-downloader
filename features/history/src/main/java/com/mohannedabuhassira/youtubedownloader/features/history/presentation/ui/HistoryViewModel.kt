@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class HistoryViewModel @Inject constructor(
+internal class HistoryViewModel @Inject constructor(
     private val repository: HistoryRepository
 ) : ViewModel() {
 

@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class DownloaderViewModel @Inject constructor(
+internal class DownloaderViewModel @Inject constructor(
     private val repository: DownloaderRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DownloaderUiState())
