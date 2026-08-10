@@ -42,19 +42,23 @@ internal class DownloaderViewModel @Inject constructor(
     }
 
     fun onQualityChange(quality: VideoQuality) {
-        _uiState.update { it.copy(
-            selectedQuality = quality,
-            selectedAudioQuality = null,
-            selectedDownloadType = DownloadType.VIDEO
-        ) }
+        _uiState.update {
+            it.copy(
+                selectedQuality = quality,
+                selectedAudioQuality = null,
+                selectedDownloadType = DownloadType.VIDEO
+            )
+        }
     }
 
     fun onAudioQualityChange(quality: AudioQuality) {
-        _uiState.update { it.copy(
-            selectedAudioQuality = quality,
-            selectedQuality = null,
-            selectedDownloadType = DownloadType.AUDIO
-        ) }
+        _uiState.update {
+            it.copy(
+                selectedAudioQuality = quality,
+                selectedQuality = null,
+                selectedDownloadType = DownloadType.AUDIO
+            )
+        }
     }
 
     fun fetchVideoInfo() {
@@ -74,13 +78,25 @@ internal class DownloaderViewModel @Inject constructor(
             }
             when (val result = repository.getInfo(_uiState.value.url)) {
                 is ApiResult.Success -> {
-                    _uiState.update { it.copy(isLoading = false, videoInfo = result.data) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            videoInfo = result.data
+                        )
+                    }
                 }
                 is ApiResult.Error -> {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.message
+                        )
+                    }
                 }
                 is ApiResult.Loading -> {
-                    _uiState.update { it.copy(isLoading = true) }
+                    _uiState.update {
+                        it.copy(isLoading = true)
+                    }
                 }
             }
         }
@@ -108,17 +124,29 @@ internal class DownloaderViewModel @Inject constructor(
                     when (result) {
                         is ApiResult.Success -> {
                             val status = result.data as? DownloadStatus.Completed
-                            _uiState.update { it.copy(
-                                isDownloading = false,
-                                progress = 100f,
-                                downloadedFilePath = status?.filePath
-                            ) }
+                            _uiState.update {
+                                it.copy(
+                                    isDownloading = false,
+                                    progress = 100f,
+                                    downloadedFilePath = status?.filePath
+                                )
+                            }
                         }
                         is ApiResult.Error -> {
-                            _uiState.update { it.copy(isDownloading = false, errorMessage = result.message) }
+                            _uiState.update {
+                                it.copy(
+                                    isDownloading = false,
+                                    errorMessage = result.message
+                                )
+                            }
                         }
                         is ApiResult.Loading -> {
-                            _uiState.update { it.copy(isDownloading = true, progress = result.progress) }
+                            _uiState.update {
+                                it.copy(
+                                    isDownloading = true,
+                                    progress = result.progress
+                                )
+                            }
                         }
                     }
                 }
