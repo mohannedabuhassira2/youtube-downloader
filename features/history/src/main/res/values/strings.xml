@@ -7,4 +7,7 @@
     <string name="delete_content_desc">Delete</string>
     <string name="back_content_desc">Back</string>
     <string name="download_history">Download History</string>
+    <string name="share_via">Share via</string>
+    <string name="error_failed_open">Failed to open file</string>
+    <string name="error_failed_share">Failed to share file</string>
 </resources>

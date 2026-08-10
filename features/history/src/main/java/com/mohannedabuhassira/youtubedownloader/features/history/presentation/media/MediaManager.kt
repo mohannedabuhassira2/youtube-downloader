@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import com.mohannedabuhassira.youtubedownloader.features.history.R
 import com.mohannedabuhassira.youtubedownloader.features.history.domain.model.DownloadFile
 import com.mohannedabuhassira.youtubedownloader.features.history.domain.model.DownloadFileType
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,7 +25,7 @@ internal class MediaManager @Inject constructor(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
-        startActivitySafely(intent, "Failed to open file")
+        startActivitySafely(intent, context.getString(R.string.error_failed_open))
     }
 
     fun shareFile(file: DownloadFile) {
@@ -37,8 +38,8 @@ internal class MediaManager @Inject constructor(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
-        val chooserIntent = Intent.createChooser(shareIntent, "Share via")
-        startActivitySafely(chooserIntent, "Failed to share file")
+        val chooserIntent = Intent.createChooser(shareIntent, context.getString(R.string.share_via))
+        startActivitySafely(chooserIntent, context.getString(R.string.error_failed_share))
     }
 
     private fun getUriForFilePath(filePath: String): Uri? {

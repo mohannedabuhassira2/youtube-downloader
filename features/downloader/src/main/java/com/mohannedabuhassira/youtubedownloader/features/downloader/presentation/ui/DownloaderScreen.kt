@@ -1,5 +1,10 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.presentation.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,10 +33,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mohannedabuhassira.youtubedownloader.core.designsystem.theme.YoutubeDownloaderTheme
 import com.mohannedabuhassira.youtubedownloader.features.downloader.R
@@ -51,6 +58,15 @@ internal fun DownloaderScreen(
     viewModel: DownloaderViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.startDownload()
+        }
+    }
 
     DownloaderScreenContent(
         uiState = uiState,
@@ -58,7 +74,22 @@ internal fun DownloaderScreen(
         onQualityChange = viewModel::onQualityChange,
         onAudioQualityChange = viewModel::onAudioQualityChange,
         onGetInfoClick = viewModel::fetchVideoInfo,
-        onDownloadClick = viewModel::startDownload,
+        onDownloadClick = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+
+                if (hasPermission) {
+                    viewModel.startDownload()
+                } else {
+                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            } else {
+                viewModel.startDownload()
+            }
+        },
         onHistoryClick = onNavigateToHistory,
         onResetDownload = viewModel::resetDownloadState
     )

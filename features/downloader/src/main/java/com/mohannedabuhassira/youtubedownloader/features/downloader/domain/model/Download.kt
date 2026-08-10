@@ -1,5 +1,8 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class DownloadOptions(
     val url: String,
     val title: String?,
@@ -11,6 +14,7 @@ data class DownloadOptions(
     val audioQuality: AudioQuality = AudioQuality.K128
 )
 
+@Serializable
 enum class DownloadType {
     AUDIO, VIDEO
 }

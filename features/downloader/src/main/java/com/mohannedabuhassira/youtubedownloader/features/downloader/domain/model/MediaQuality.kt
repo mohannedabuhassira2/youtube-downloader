@@ -1,5 +1,8 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class VideoQuality(val label: String) {
     P144("144p"),
     P240("240p"),
@@ -11,6 +14,7 @@ enum class VideoQuality(val label: String) {
     P2160("2160p")
 }
 
+@Serializable
 enum class AudioQuality(val kbps: Int) {
     K64(64),
     K128(128),

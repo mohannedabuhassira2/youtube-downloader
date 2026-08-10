@@ -20,4 +20,9 @@
     <string name="paste_content_desc">Paste</string>
     <string name="unknown_uploader">Unknown Uploader</string>
     <string name="unknown_title">Unknown Title</string>
+    <string name="download_channel_name">Downloads</string>
+    <string name="download_channel_description">Notifications for active video and audio downloads</string>
+    <string name="downloading_notification_title">Downloading %1$s</string>
+    <string name="download_complete_notification_title">Download Complete</string>
+    <string name="download_failed_notification_title">Download Failed</string>
 </resources>
