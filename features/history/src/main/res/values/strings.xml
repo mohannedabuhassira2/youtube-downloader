@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="no_downloads">Wow, so empty!</string>
+    <string name="history_title">Download History</string>
+    <string name="play_content_desc">Play</string>
+    <string name="share_content_desc">Share</string>
+    <string name="delete_content_desc">Delete</string>
+    <string name="back_content_desc">Back</string>
+    <string name="download_history">Download History</string>
+</resources>
