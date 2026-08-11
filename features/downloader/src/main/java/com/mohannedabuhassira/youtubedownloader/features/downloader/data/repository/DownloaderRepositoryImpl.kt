@@ -37,7 +37,10 @@ internal class DownloaderRepositoryImpl @Inject constructor(
     override suspend fun getInfo(url: String): ApiResult<VideoModel> {
         return try {
             val cliOptions = cliRequestBuilder.buildInfoOptions()
-            val info = networkDownloader.getInfo(url = url, options = cliOptions)
+            val info = networkDownloader.getInfo(
+                url = url,
+                options = cliOptions
+            )
 
             ApiResult.Success(info.toVideoModel())
         } catch (e: Exception) {
@@ -55,12 +58,27 @@ internal class DownloaderRepositoryImpl @Inject constructor(
         } else {
             options.audioQuality.label
         }
-        val titleWithQuality = "${options.title} [$qualityLabel]"
+        
         val extension = if (options.type == DownloadType.AUDIO) "mp3" else "mp4"
-        val expectedFilePath = File(downloadDirectory, "$titleWithQuality.$extension").absolutePath
-        val outputTemplate = "${downloadDirectory.absolutePath}/$titleWithQuality.%(ext)s"
+        val baseTitle = "${options.title ?: "Unknown"} [$qualityLabel]"
+        
+        val uniqueTitle = getUniqueFileName(
+            directory = downloadDirectory,
+            baseName = baseTitle,
+            extension = extension
+        )
+        
+        val expectedFilePath = File(
+            downloadDirectory,
+            "$uniqueTitle.$extension"
+        ).absolutePath
+        
+        val outputTemplate = "${downloadDirectory.absolutePath}/$uniqueTitle.%(ext)s"
 
-        val cliOptions = cliRequestBuilder.buildDownloadOptions(options, outputTemplate)
+        val cliOptions = cliRequestBuilder.buildDownloadOptions(
+            options = options,
+            outputTemplate = outputTemplate
+        )
 
         val downloadedResult = networkDownloader.download(
             url = options.url,
@@ -71,7 +89,11 @@ internal class DownloaderRepositoryImpl @Inject constructor(
         return downloadedResult
             .onEach { status ->
                 if (status is DownloadStatus.Completed) {
-                    saveCompletedDownload(options, status.filePath, qualityLabel)
+                    saveCompletedDownload(
+                        options = options,
+                        filePath = status.filePath,
+                        qualityLabel = qualityLabel
+                    )
                 }
             }
             .map { status ->
@@ -107,9 +129,32 @@ internal class DownloaderRepositoryImpl @Inject constructor(
             )
 
             mediaItemDao.insertMediaItem(entity)
-            MediaScannerConnection.scanFile(context, arrayOf(filePath), null, null)
+            MediaScannerConnection.scanFile(
+                context,
+                arrayOf(filePath),
+                null,
+                null
+            )
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun getUniqueFileName(
+        directory: File,
+        baseName: String,
+        extension: String
+    ): String {
+        var name = baseName
+        var file = File(directory, "$name.$extension")
+        var counter = 1
+        
+        while (file.exists()) {
+            name = "$baseName ($counter)"
+            file = File(directory, "$name.$extension")
+            counter++
+        }
+        
+        return name
     }
 }
