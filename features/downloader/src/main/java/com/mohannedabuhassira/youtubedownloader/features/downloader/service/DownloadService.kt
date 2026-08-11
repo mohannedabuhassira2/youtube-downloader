@@ -25,12 +25,15 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 internal class DownloadService : LifecycleService() {
-
     @Inject
     lateinit var repository: DownloaderRepository
 
     @Inject
     lateinit var progressManager: DownloadProgressManager
+
+    private val notificationManager by lazy {
+        getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+    }
 
     private var downloadJob: Job? = null
 
@@ -39,7 +42,11 @@ internal class DownloadService : LifecycleService() {
         createNotificationChannel()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int
+    ): Int {
         super.onStartCommand(intent, flags, startId)
 
         val optionsJson = intent?.getStringExtra(EXTRA_DOWNLOAD_OPTIONS)
@@ -51,10 +58,15 @@ internal class DownloadService : LifecycleService() {
         return START_NOT_STICKY
     }
 
+    override fun onDestroy() {
+        downloadJob?.cancel()
+        super.onDestroy()
+    }
+
     private fun startDownload(options: DownloadOptions) {
         downloadJob?.cancel()
 
-        val initialNotification = createInitialNotification(options)
+        val initialNotification = buildProgressNotification(options, progress = 0)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -69,22 +81,22 @@ internal class DownloadService : LifecycleService() {
         downloadJob = repository.download(options)
             .onEach { result ->
                 progressManager.updateProgress(result)
-                updateNotification(result, options)
+                handleDownloadResult(result, options)
             }
             .launchIn(lifecycleScope)
     }
 
-    private fun updateNotification(
+    private fun handleDownloadResult(
         result: ApiResult<DownloadStatus>,
         options: DownloadOptions
     ) {
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-
         when (result) {
             is ApiResult.Loading -> {
                 val progress = result.progress?.toInt() ?: 0
-                val progressNotification = createProgressNotification(options, progress)
-                notificationManager.notify(NOTIFICATION_ID, progressNotification)
+                notificationManager.notify(
+                    NOTIFICATION_ID,
+                    buildProgressNotification(options, progress)
+                )
             }
 
             is ApiResult.Success -> {
@@ -104,28 +116,21 @@ internal class DownloadService : LifecycleService() {
                     .build()
 
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-                notificationManager.notify(NOTIFICATION_ID + 1, errorNotification)
+                notificationManager.notify(ERROR_NOTIFICATION_ID, errorNotification)
                 stopSelf()
             }
         }
     }
 
-    private fun createInitialNotification(options: DownloadOptions) =
+    private fun buildProgressNotification(options: DownloadOptions, progress: Int) =
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(getString(R.string.downloading_notification_title, options.title ?: getString(R.string.unknown_title)))
-            .setContentText("0%")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-            .setProgress(100, 0, false)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .build()
-
-    private fun createProgressNotification(options: DownloadOptions, progress: Int) =
-        NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(getString(R.string.downloading_notification_title, options.title ?: getString(R.string.unknown_title)))
+            .setContentTitle(
+                getString(
+                    R.string.downloading_notification_title,
+                    options.title ?: getString(R.string.unknown_title)
+                )
+            )
             .setContentText("$progress%")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
@@ -136,20 +141,21 @@ internal class DownloadService : LifecycleService() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = getString(R.string.download_channel_name)
-            val descriptionText = getString(R.string.download_channel_description)
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.download_channel_name),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = getString(R.string.download_channel_description)
                 setShowBadge(true)
             }
-            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
 
     companion object {
         private const val NOTIFICATION_ID = 101
+        private const val ERROR_NOTIFICATION_ID = 102
         private const val CHANNEL_ID = "download_channel"
         private const val EXTRA_DOWNLOAD_OPTIONS = "extra_download_options"
 
