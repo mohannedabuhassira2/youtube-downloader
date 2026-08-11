@@ -7,7 +7,7 @@ import javax.inject.Inject
 internal class YoutubeCliRequestBuilder @Inject constructor() {
     fun buildInfoOptions(): List<Pair<String, String?>> = listOf(
         "--no-playlist" to null,
-        "--extractor-args" to "youtube:player_client=android_vr,mweb"
+        "--extractor-args" to "youtube:player_client=android_vr,mweb,web,ios"
     )
 
     fun buildDownloadOptions(
@@ -15,7 +15,7 @@ internal class YoutubeCliRequestBuilder @Inject constructor() {
         outputTemplate: String
     ): List<Pair<String, String?>> = buildList {
         add("-o" to outputTemplate)
-        add("--extractor-args" to "youtube:player_client=android_vr")
+        add("--extractor-args" to "youtube:player_client=android_vr,mweb,web,ios")
         add("--no-playlist" to null)
         add("--no-part" to null)
         add("--downloader" to "aria2c")
