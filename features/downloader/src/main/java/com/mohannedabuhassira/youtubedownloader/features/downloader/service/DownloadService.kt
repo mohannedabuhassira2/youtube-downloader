@@ -1,7 +1,9 @@
 package com.mohannedabuhassira.youtubedownloader.features.downloader.service
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -36,6 +38,10 @@ internal class DownloadService : LifecycleService() {
     }
 
     private var downloadJob: Job? = null
+
+    private val notificationBuilder: NotificationCompat.Builder by lazy {
+        createBaseBuilder()
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -75,21 +81,26 @@ internal class DownloadService : LifecycleService() {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             )
         } else {
-            startForeground(NOTIFICATION_ID, initialNotification)
+            startForeground(
+                NOTIFICATION_ID,
+                initialNotification
+            )
         }
 
         downloadJob = repository.download(options)
             .onEach { result ->
                 progressManager.updateProgress(result)
-                handleDownloadResult(result, options)
+                updateNotificationState(result, options)
             }
             .launchIn(lifecycleScope)
     }
 
-    private fun handleDownloadResult(
+    private fun updateNotificationState(
         result: ApiResult<DownloadStatus>,
         options: DownloadOptions
     ) {
+        val videoTitle = options.title ?: getString(R.string.unknown_title)
+
         when (result) {
             is ApiResult.Loading -> {
                 val progress = result.progress?.toInt() ?: 0
@@ -100,54 +111,87 @@ internal class DownloadService : LifecycleService() {
             }
 
             is ApiResult.Success -> {
-                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-                notificationManager.cancel(NOTIFICATION_ID)
-                stopSelf()
-            }
-
-            is ApiResult.Error -> {
-                val errorNotification = NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.stat_notify_error)
-                    .setContentTitle(getString(R.string.download_failed_notification_title))
-                    .setContentText(result.message ?: getString(R.string.unknown_title))
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                val successNotification = notificationBuilder
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                    .setContentTitle(getString(R.string.download_complete_notification_title))
+                    .setContentText(videoTitle)
+                    .setProgress(0, 0, false)
                     .setOngoing(false)
                     .setAutoCancel(true)
                     .build()
 
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                notificationManager.cancel(NOTIFICATION_ID)
+                notificationManager.notify(SUCCESS_NOTIFICATION_ID, successNotification)
+                stopSelf()
+            }
+
+            is ApiResult.Error -> {
+                val errorNotification = notificationBuilder
+                    .setSmallIcon(android.R.drawable.stat_notify_error)
+                    .setContentTitle(getString(R.string.download_failed_notification_title))
+                    .setContentText(result.message ?: getString(R.string.error_download_failed))
+                    .setProgress(0, 0, false)
+                    .setOngoing(false)
+                    .setAutoCancel(true)
+                    .build()
+
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                notificationManager.cancel(NOTIFICATION_ID)
                 notificationManager.notify(ERROR_NOTIFICATION_ID, errorNotification)
                 stopSelf()
             }
         }
     }
 
-    private fun buildProgressNotification(options: DownloadOptions, progress: Int) =
-        NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun buildProgressNotification(
+        options: DownloadOptions,
+        progress: Int
+    ): Notification {
+        val videoTitle = options.title ?: getString(R.string.unknown_title)
+
+        return notificationBuilder
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(
-                getString(
-                    R.string.downloading_notification_title,
-                    options.title ?: getString(R.string.unknown_title)
-                )
-            )
+            .setContentTitle(getString(R.string.downloading_notification_title, videoTitle))
             .setContentText("$progress%")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setProgress(100, progress, false)
             .setOngoing(true)
-            .setOnlyAlertOnce(true)
+            .setContentIntent(createBringToFrontPendingIntent())
             .build()
+    }
+
+    private fun createBringToFrontPendingIntent(): PendingIntent {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        }
+
+        return PendingIntent.getActivity(
+            this,
+            0,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun createBaseBuilder(): NotificationCompat.Builder {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setOnlyAlertOnce(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 getString(R.string.download_channel_name),
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = getString(R.string.download_channel_description)
-                setShowBadge(true)
+                setShowBadge(false)
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -156,7 +200,8 @@ internal class DownloadService : LifecycleService() {
     companion object {
         private const val NOTIFICATION_ID = 101
         private const val ERROR_NOTIFICATION_ID = 102
-        private const val CHANNEL_ID = "download_channel"
+        private const val SUCCESS_NOTIFICATION_ID = 103
+        private const val CHANNEL_ID = "download_channel_v2"
         private const val EXTRA_DOWNLOAD_OPTIONS = "extra_download_options"
 
         fun start(context: Context, options: DownloadOptions) {

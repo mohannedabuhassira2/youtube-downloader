@@ -6,7 +6,7 @@ import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.VideoQuality
 
 data class DownloaderUiState(
-    val url: String = "",
+    val url: String = "https://www.youtube.com/watch?v=Jh4joGPpJyg",
     val isLoading: Boolean = false,
     val videoInfo: VideoModel? = null,
     val progress: Float? = null,

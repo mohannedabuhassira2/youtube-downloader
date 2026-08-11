@@ -183,7 +183,8 @@ private fun DownloaderScreenContent(
                                 onAudioQualityChange = onAudioQualityChange,
                                 onDownloadClick = onDownloadClick,
                                 onClearClick = { onUrlChange("") },
-                                onResetDownload = onResetDownload
+                                onResetDownload = onResetDownload,
+                                errorMessage = uiState.errorMessage
                             )
                         }
                     }

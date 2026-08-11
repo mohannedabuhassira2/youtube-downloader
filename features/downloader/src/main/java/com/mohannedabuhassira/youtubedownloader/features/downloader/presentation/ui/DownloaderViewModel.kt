@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mohannedabuhassira.youtubedownloader.core.network.client.DownloadStatus
+import com.mohannedabuhassira.youtubedownloader.features.downloader.R
 import com.mohannedabuhassira.youtubedownloader.features.downloader.data.ApiResult
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.AudioQuality
 import com.mohannedabuhassira.youtubedownloader.features.downloader.domain.model.DownloadOptions
@@ -24,11 +25,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 internal class DownloaderViewModel @Inject constructor(
-    application: Application,
+    private val application: Application,
     private val repository: DownloaderRepository,
     private val progressManager: DownloadProgressManager
 ) : AndroidViewModel(application) {
-
     private val _uiState = MutableStateFlow(DownloaderUiState())
     val uiState: StateFlow<DownloaderUiState> = _uiState.asStateFlow()
 
@@ -68,9 +68,11 @@ internal class DownloaderViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isDownloading = false,
-                        errorMessage = result.message
+                        progress = null,
+                        errorMessage = application.getString(R.string.error_download_failed)
                     )
                 }
+                progressManager.clearProgress()
             }
         }
     }
@@ -98,7 +100,8 @@ internal class DownloaderViewModel @Inject constructor(
             it.copy(
                 selectedQuality = quality,
                 selectedAudioQuality = null,
-                selectedDownloadType = DownloadType.VIDEO
+                selectedDownloadType = DownloadType.VIDEO,
+                errorMessage = null
             )
         }
     }
@@ -108,7 +111,8 @@ internal class DownloaderViewModel @Inject constructor(
             it.copy(
                 selectedAudioQuality = quality,
                 selectedQuality = null,
-                selectedDownloadType = DownloadType.AUDIO
+                selectedDownloadType = DownloadType.AUDIO,
+                errorMessage = null
             )
         }
     }
@@ -142,7 +146,7 @@ internal class DownloaderViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.message
+                            errorMessage = application.getString(R.string.error_failed_to_display_url)
                         )
                     }
                 }
@@ -159,6 +163,8 @@ internal class DownloaderViewModel @Inject constructor(
         val type = _uiState.value.selectedDownloadType ?: return
         val videoInfo = _uiState.value.videoInfo ?: return
 
+        _uiState.update { it.copy(errorMessage = null) }
+
         val options = DownloadOptions(
             url = _uiState.value.url,
             title = videoInfo.title,
@@ -170,7 +176,7 @@ internal class DownloaderViewModel @Inject constructor(
             audioQuality = _uiState.value.selectedAudioQuality ?: AudioQuality.K128
         )
 
-        DownloadService.start(getApplication(), options)
+        DownloadService.start(application, options)
     }
 
     fun resetDownloadState() {

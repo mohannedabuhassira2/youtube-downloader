@@ -89,7 +89,8 @@ internal fun VideoInfoCard(
     onDownloadClick: () -> Unit,
     onClearClick: () -> Unit,
     onResetDownload: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    errorMessage: String? = null
 ) {
     var hasStartedDownloading by remember { mutableStateOf(false) }
 
@@ -157,6 +158,15 @@ internal fun VideoInfoCard(
                     title = videoInfo.title,
                     uploader = videoInfo.uploader
                 )
+
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
 
                 if (!isDownloading && downloadedFilePath.isNullOrBlank()) {
                     QualitySelectors(
