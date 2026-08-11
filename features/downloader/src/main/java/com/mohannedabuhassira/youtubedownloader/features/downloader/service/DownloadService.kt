@@ -130,7 +130,7 @@ internal class DownloadService : LifecycleService() {
                 val errorNotification = notificationBuilder
                     .setSmallIcon(android.R.drawable.stat_notify_error)
                     .setContentTitle(getString(R.string.download_failed_notification_title))
-                    .setContentText(result.message ?: getString(R.string.error_download_failed))
+                    .setContentText(getString(R.string.error_download_failed))
                     .setProgress(0, 0, false)
                     .setOngoing(false)
                     .setAutoCancel(true)
